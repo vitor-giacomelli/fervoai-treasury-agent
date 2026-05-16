@@ -1,54 +1,102 @@
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 
 :root {
-  font-family: "JetBrains Mono", "IBM Plex Sans", system-ui, sans-serif;
-  color: #d6f6ff;
-  background: #090d13;
+  color-scheme: dark;
+  --background: 0 0% 0%;
+  --foreground: 0 0% 94%;
+  --card: 0 0% 4%;
+  --border: 0 0% 12%;
+  --accent: 50 100% 58%;
+  --flame-red: #ff2d2d;
+  --chaos-yellow: #ffd82a;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.14), transparent 35%),
-    radial-gradient(circle at 85% 10%, rgba(245, 158, 11, 0.11), transparent 30%),
-    linear-gradient(160deg, #05070c 0%, #0a1119 55%, #04070d 100%);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: Inter, sans-serif;
 }
 
-#root {
-  min-height: 100vh;
+@keyframes cursor-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
 }
 
-.hud-panel {
-  border: 1px solid rgba(34, 211, 238, 0.35);
-  background: linear-gradient(180deg, rgba(12, 20, 32, 0.95), rgba(7, 12, 20, 0.95));
-  box-shadow: inset 0 1px 0 rgba(103, 232, 249, 0.15), 0 12px 40px rgba(8, 145, 178, 0.16);
+@layer utilities {
+  .flame-gradient {
+    background-image: linear-gradient(135deg, var(--flame-red), var(--chaos-yellow));
+  }
+
+  .flame-gradient-text {
+    background-image: linear-gradient(135deg, var(--flame-red), var(--chaos-yellow));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .scanline-overlay {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .scanline-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 20;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.15) 0px,
+      rgba(0, 0, 0, 0.15) 1px,
+      rgba(255, 255, 255, 0) 2px,
+      rgba(255, 255, 255, 0) 4px
+    );
+  }
+
+  .log-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #3b3b3b transparent;
+  }
+
+  .log-scroll::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .log-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .log-scroll::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: #3b3b3b;
+  }
+
+  .log-scroll::-webkit-scrollbar-thumb:hover {
+    background: #555555;
+  }
+
+  .cursor-blink {
+    animation: cursor-blink 1s steps(1, end) infinite;
+  }
 }
 
-.hud-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(34, 211, 238, 0.22);
-  padding: 0.6rem 0.85rem;
-  background: linear-gradient(90deg, rgba(34, 211, 238, 0.12), rgba(34, 211, 238, 0.02));
-}
-
-.scanline-overlay {
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0) 0px,
-    rgba(0, 0, 0, 0) 2px,
-    rgba(56, 189, 248, 0.045) 3px,
-    rgba(56, 189, 248, 0.045) 4px
-  );
-  mix-blend-mode: screen;
-  z-index: 20;
-}
