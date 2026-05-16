@@ -1,0 +1,22 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: fervoai-treasury-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Default to TRUE for bulletproof Vultr deployment.
+      # Can be overridden by setting DEMO_MODE=FALSE in the .env file.
+      - DEMO_MODE=${DEMO_MODE:-TRUE}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: fervoai-treasury-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
