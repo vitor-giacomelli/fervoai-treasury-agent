@@ -32,5 +32,5 @@ export interface TreasuryStreamState {
   vad: VadSnapshot | null
   grants: GrantCandidate[]
   pitch: PitchPayload | null
-  reconnect: () => void
+  runQuery: (query: string) => void
 }

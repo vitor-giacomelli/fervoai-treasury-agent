@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import { useTreasuryStream } from './hooks/useTreasuryStream'
 
 type TelemetryLine = {
-  kind: 'thought' | 'vad' | 'json'
+  id: string
+  kind: 'thought' | 'vad' | 'json' | 'target'
   label: string
   content: string
   timestamp: string
@@ -11,11 +12,19 @@ type TelemetryLine = {
 
 function App() {
   const stream = useTreasuryStream()
+  const [businessContext, setBusinessContext] = useState('')
+  const [hasTriedSubmit, setHasTriedSubmit] = useState(false)
+
+  const trimmedContext = businessContext.trim()
+  const canExecute = trimmedContext.length > 0
 
   const telemetryLines = useMemo(() => {
+    const anchorTimestamp = stream.monologueLog[0]?.timestamp ?? new Date().toISOString()
+
     const thoughtLines: TelemetryLine[] = [...stream.monologueLog]
       .reverse()
-      .map((entry) => ({
+      .map((entry, index) => ({
+        id: `thought-${entry.timestamp}-${index}-${entry.text.slice(0, 16)}`,
         kind: 'thought',
         label: 'THOUGHT',
         content: entry.text,
@@ -25,10 +34,11 @@ function App() {
     const vadLines: TelemetryLine[] = stream.vad
       ? [
           {
+            id: `vad-${stream.vad.valence.toFixed(3)}-${stream.vad.arousal.toFixed(3)}-${stream.vad.dominance.toFixed(3)}`,
             kind: 'vad',
             label: 'VAD',
             content: `V:${stream.vad.valence.toFixed(2)} A:${stream.vad.arousal.toFixed(2)} D:${stream.vad.dominance.toFixed(2)}`,
-            timestamp: new Date().toISOString(),
+            timestamp: anchorTimestamp,
           },
         ]
       : []
@@ -37,15 +47,17 @@ function App() {
 
     if (stream.grants[0]) {
       payloadLines.push({
-        kind: 'json',
+        id: `target-${stream.grants[0].opportunity_number}`,
+        kind: 'target',
         label: 'TARGET_JSON',
         content: JSON.stringify(stream.grants[0], null, 0),
-        timestamp: new Date().toISOString(),
+        timestamp: anchorTimestamp,
       })
     }
 
     if (stream.pitch) {
       payloadLines.push({
+        id: `pitch-${stream.pitch.model_used}-${stream.pitch.status}`,
         kind: 'json',
         label: 'PITCH_JSON',
         content: JSON.stringify(
@@ -56,7 +68,7 @@ function App() {
           null,
           0,
         ),
-        timestamp: new Date().toISOString(),
+        timestamp: anchorTimestamp,
       })
     }
 
@@ -65,43 +77,60 @@ function App() {
 
   const activeTarget = stream.grants[0] ?? null
 
+  const handleCommandOverride = () => {
+    setHasTriedSubmit(true)
+    if (!canExecute) {
+      return
+    }
+    stream.runQuery(trimmedContext)
+  }
+
   return (
     <div className="bg-background text-foreground scanline-overlay min-h-screen">
       <header className="border-border flex items-center justify-between border-b px-6 py-5">
         <div className="font-heading text-5xl uppercase tracking-[0.08em] leading-none">
           fervo<span className="flame-gradient-text">ai</span>
         </div>
-        <div className="font-mono text-foreground/70 text-xs uppercase tracking-[0.12em]">NODE: FERVOAI.TECH</div>
+        <div className="flex items-center gap-6">
+          <div className="font-mono text-foreground/70 text-xs uppercase tracking-[0.12em]">NODE: FERVOAI.TECH</div>
+          <div className="font-mono text-xs uppercase tracking-[0.1em] text-emerald-300 flex items-center gap-2">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            Link Established
+          </div>
+        </div>
       </header>
 
       <main className="grid grid-cols-1 gap-6 p-6 xl:grid-cols-3">
         <section className="bg-card border-border xl:col-span-2 rounded border">
-          <div className="bg-[#0A0A0A] border-border flex items-center justify-between border-b px-4 py-3">
+          <div className="bg-card border-border flex items-center justify-between border-b px-4 py-3">
             <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Cognitive Telemetry</h2>
             <span className="font-mono text-foreground/60 text-xs uppercase tracking-[0.12em]">{stream.status}</span>
           </div>
 
           <div className="log-scroll h-[70vh] overflow-y-auto p-4 font-mono text-sm">
-            {telemetryLines.length === 0 && (
-              <p className="text-foreground/55">Awaiting stream handshake...</p>
-            )}
+            {telemetryLines.length === 0 && <p className="text-foreground/55">Awaiting stream handshake...</p>}
 
-            {telemetryLines.map((line, index) => {
+            {telemetryLines.map((line) => {
               const labelClass =
                 line.kind === 'thought'
                   ? 'text-foreground/85'
                   : line.kind === 'vad'
-                    ? 'text-[#FFD82A]'
-                    : 'text-[#FF2D2D]/90'
+                    ? 'text-foreground/55'
+                    : line.kind === 'target'
+                      ? 'text-foreground/90'
+                      : 'text-foreground/50'
               const bodyClass =
                 line.kind === 'thought'
                   ? 'text-foreground/72'
                   : line.kind === 'vad'
-                    ? 'text-[#FFD82A]/85'
-                    : 'text-foreground/58'
+                    ? 'text-foreground/55'
+                    : line.kind === 'target'
+                      ? 'text-foreground/72'
+                      : 'text-foreground/50'
+              const rowClass = line.kind === 'target' ? 'flame-left-border pl-3' : ''
 
               return (
-                <div key={`${line.timestamp}-${line.label}-${index}`} className="border-border/50 mb-3 border-b pb-3 last:border-b-0">
+                <div key={line.id} className={`border-border/50 mb-3 border-b pb-3 last:border-b-0 ${rowClass}`}>
                   <div className={`text-[11px] tracking-[0.11em] uppercase ${labelClass}`}>
                     [{new Date(line.timestamp).toLocaleTimeString()}] {line.label}
                   </div>
@@ -118,20 +147,42 @@ function App() {
         </section>
 
         <aside className="bg-card border-border rounded border">
-          <div className="bg-[#0A0A0A] border-border border-b px-4 py-3">
+          <div className="bg-card border-border border-b px-4 py-3">
             <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Action &amp; Output</h2>
           </div>
 
           <div className="space-y-5 p-4">
+            <div>
+              <label className="font-heading text-foreground/60 mb-2 block text-sm uppercase tracking-[0.12em]">
+                Core Business Context
+              </label>
+              <textarea
+                value={businessContext}
+                onChange={(event) => {
+                  setBusinessContext(event.target.value)
+                  if (hasTriedSubmit && event.target.value.trim()) {
+                    setHasTriedSubmit(false)
+                  }
+                }}
+                placeholder="B2B AI infrastructure for autonomous cloud optimization..."
+                rows={5}
+                className="bg-background border-border font-mono text-foreground placeholder:text-foreground/35 focus:border-[#FFD82A] focus:ring-[#FF2D2D]/30 w-full resize-none rounded border px-3 py-2 text-sm outline-none transition focus:ring-2"
+              />
+              {hasTriedSubmit && !canExecute && (
+                <p className="font-mono text-[#FF2D2D] mt-2 text-xs">Context required to execute workflow.</p>
+              )}
+            </div>
+
             <button
               type="button"
-              onClick={stream.reconnect}
-              className="flame-gradient font-heading text-background w-full rounded px-4 py-3 text-2xl uppercase tracking-[0.1em] shadow-[0_0_24px_rgba(255,216,42,0.25)]"
+              onClick={handleCommandOverride}
+              disabled={!canExecute}
+              className="flame-gradient font-heading text-background disabled:text-background/50 disabled:cursor-not-allowed disabled:opacity-55 w-full rounded px-4 py-3 text-2xl uppercase tracking-[0.1em] shadow-[0_0_24px_rgba(255,216,42,0.25)]"
             >
               Command Override
             </button>
 
-            <div className="bg-[#0A0A0A] border-border rounded border">
+            <div className="bg-card border-border rounded border">
               <div className="flame-gradient h-1 w-full" />
               <div className="p-4">
                 <h3 className="font-heading mb-2 text-xl uppercase tracking-[0.08em]">Active Target</h3>
@@ -148,7 +199,7 @@ function App() {
               </div>
             </div>
 
-            <div className="bg-[#0A0A0A] border-border rounded border p-4">
+            <div className="bg-card border-border rounded border p-4">
               <h3 className="font-heading mb-2 text-xl uppercase tracking-[0.08em]">Latest Pitch</h3>
               {stream.pitch ? (
                 <>
@@ -170,4 +221,3 @@ function App() {
 }
 
 export default App
-

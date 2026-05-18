@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 import type { GrantCandidate, MonologueEntry, PitchPayload, TreasuryStreamState, VadSnapshot, WorkflowStatus } from '../types/stream'
 
@@ -16,7 +16,6 @@ const DEV_DEFAULT_API_BASE_URL =
     : ''
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? DEV_DEFAULT_API_BASE_URL).replace(/\/$/, '')
-const STREAM_URL = `${API_BASE_URL}/api/stream_workflow?query=start`
 
 export function useTreasuryStream(): TreasuryStreamState {
   const [status, setStatus] = useState<WorkflowStatus>('idle')
@@ -81,7 +80,7 @@ export function useTreasuryStream(): TreasuryStreamState {
     }
   }, [closeSource])
 
-  const connect = useCallback(() => {
+  const connect = useCallback((query: string) => {
     closeSource()
     completedRef.current = false
     closingRef.current = false
@@ -92,7 +91,8 @@ export function useTreasuryStream(): TreasuryStreamState {
     setGrants([])
     setPitch(null)
 
-    const source = new EventSource(STREAM_URL)
+    const streamUrl = `${API_BASE_URL}/api/stream_workflow?query=${encodeURIComponent(query)}`
+    const source = new EventSource(streamUrl)
     sourceRef.current = source
 
     source.onopen = () => {
@@ -109,13 +109,13 @@ export function useTreasuryStream(): TreasuryStreamState {
     }
   }, [closeSource, handleMessage])
 
-  useEffect(() => {
-    connect()
-    return () => closeSource()
-  }, [connect, closeSource])
-
-  const reconnect = useCallback(() => {
-    connect()
+  const runQuery = useCallback((query: string) => {
+    const trimmedQuery = query.trim()
+    if (!trimmedQuery) {
+      setError('Core business context is required before launching workflow.')
+      return
+    }
+    connect(trimmedQuery)
   }, [connect])
 
   return {
@@ -125,6 +125,6 @@ export function useTreasuryStream(): TreasuryStreamState {
     vad,
     grants,
     pitch,
-    reconnect,
+    runQuery,
   }
 }

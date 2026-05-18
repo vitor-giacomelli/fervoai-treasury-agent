@@ -22,7 +22,7 @@ export function TacticalHUD({ stream }: TacticalHUDProps) {
             <span className="rounded border border-cyan-400/40 px-2 py-1 font-mono text-xs uppercase tracking-widest text-cyan-200/90">
               {stream.status}
             </span>
-            <Button onClick={stream.reconnect}>Restart Stream</Button>
+            <Button onClick={() => stream.runQuery('B2B AI infrastructure for autonomous cloud optimization')}>Restart Stream</Button>
           </div>
         </header>
 
