@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import random
 import re
 from datetime import datetime
 
@@ -16,7 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 class GrantsGovAPI:
-    BASE_URL = "https://apply07.grants.gov/grantsws/rest/opportunities/search/"
+    BASE_URL = "https://api.grants.gov/v1/api/search2"
+    RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
     def __init__(self) -> None:
         self.headers = {
@@ -78,31 +80,117 @@ class GrantsGovAPI:
             timeout=self.timeout,
             follow_redirects=True,
         ) as client:
+            request_body = {
+                "keyword": keyword,
+                "rows": limit,
+                "oppStatuses": "forecasted|posted",
+            }
             for attempt in range(self.max_retries):
                 try:
                     response = await client.post(
                         self.BASE_URL,
-                        json={
-                            "keyword": keyword,
-                            "sortBy": "closeDate",
-                            "sortOrder": "ASC",
-                            "rows": limit,
-                            "startRecordNum": 0,
-                        },
+                        json=request_body,
                     )
-                    if response.status_code in (429, 500, 502, 503, 504):
+                    if response.status_code in self.RETRYABLE_STATUS_CODES:
                         if attempt < self.max_retries - 1:
-                            await asyncio.sleep(2**attempt)
+                            delay = self._compute_backoff_delay(
+                                attempt=attempt,
+                                retry_after=response.headers.get("Retry-After"),
+                            )
+                            logger.warning(
+                                "Grants.gov returned %s on attempt %s. Retrying in %.2fs.",
+                                response.status_code,
+                                attempt + 1,
+                                delay,
+                            )
+                            await asyncio.sleep(delay)
                             continue
-                    response.raise_for_status()
+                    if response.status_code == 403:
+                        logger.warning(
+                            "Grants.gov returned 403 Forbidden for search2. "
+                            "Treating as non-retryable; verify endpoint policy and network egress rules."
+                        )
+                        return []
+                    if response.status_code >= 400:
+                        logger.warning(
+                            "Grants.gov returned non-retryable status %s for search2.",
+                            response.status_code,
+                        )
+                        return []
                     payload = response.json()
-                    return self._format_grants(payload.get("oppHits", []))
-                except Exception as err:
+                    opp_hits = self._extract_opp_hits(payload)
+                    legacy_hits = [self._map_search2_hit(hit) for hit in opp_hits]
+                    return self._format_grants(legacy_hits)
+                except httpx.RequestError as err:
+                    logger.warning("Grants.gov network error on attempt %s: %s", attempt + 1, err)
+                    if attempt < self.max_retries - 1:
+                        await asyncio.sleep(self._compute_backoff_delay(attempt=attempt))
+                        continue
+                except (json.JSONDecodeError, ValueError) as err:
                     logger.warning("Grants.gov request failed on attempt %s: %s", attempt + 1, err)
                     if attempt < self.max_retries - 1:
-                        await asyncio.sleep(2**attempt)
+                        await asyncio.sleep(self._compute_backoff_delay(attempt=attempt))
                         continue
         return []
+
+    @staticmethod
+    def _compute_backoff_delay(attempt: int, retry_after: str | None = None) -> float:
+        if retry_after:
+            try:
+                retry_after_delay = float(retry_after)
+                if retry_after_delay > 0:
+                    return min(retry_after_delay, 30.0)
+            except ValueError:
+                pass
+        base_delay = min(2**attempt, 16)
+        jitter = random.uniform(0.15, 0.9)
+        return base_delay + jitter
+
+    @staticmethod
+    def _extract_opp_hits(payload: dict) -> list[dict]:
+        data = payload.get("data")
+        if isinstance(data, dict):
+            hits = data.get("oppHits")
+            if isinstance(hits, list):
+                return [hit for hit in hits if isinstance(hit, dict)]
+        direct_hits = payload.get("oppHits")
+        if isinstance(direct_hits, list):
+            return [hit for hit in direct_hits if isinstance(hit, dict)]
+
+        error_code = payload.get("errorcode")
+        message = payload.get("msg")
+        error_msgs = None
+        if isinstance(data, dict):
+            error_msgs = data.get("errorMsgs")
+
+        logger.warning(
+            "Grants.gov search2 response missing oppHits. errorcode=%s msg=%s errorMsgs=%s top_keys=%s",
+            error_code,
+            message,
+            error_msgs,
+            list(payload.keys()),
+        )
+        return []
+
+    @staticmethod
+    def _map_search2_hit(hit: dict) -> dict:
+        agency = hit.get("agencyName") or hit.get("agencyCode") or "Unknown Agency"
+        title = hit.get("title") or hit.get("opportunityTitle") or "Unknown Title"
+        opportunity_number = hit.get("number") or hit.get("opportunityNumber") or ""
+        opp_status = hit.get("oppStatus") or "posted"
+        doc_type = hit.get("docType") or "synopsis"
+
+        return {
+            "opportunityTitle": title,
+            "opportunityNumber": opportunity_number,
+            "ownerFullName": agency,
+            "description": f"Status: {opp_status}. Document type: {doc_type}.",
+            "awardCeiling": hit.get("awardCeiling"),
+            "awardFloor": hit.get("awardFloor"),
+            "closeDate": hit.get("closeDate"),
+            "postDate": hit.get("openDate") or hit.get("postDate"),
+            "categoryOfFundingActivity": hit.get("fundingCategories", "Other"),
+        }
 
     async def _generate_synthetic_fallback(self, keyword: str, limit: int) -> list[dict[str, str]]:
         if self.synthetic_enabled and self.client is not None:
