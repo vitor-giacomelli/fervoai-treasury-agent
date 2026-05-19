@@ -1,0 +1,22 @@
+{
+  "ecosystem": "fervoAI.*",
+  "core_infrastructure": "Stateful agent runtimes, diffusion models, and automated AI pipelines.",
+  "runway_preference": "High-impact, agile capital. Multi-year, high-overhead grants are low priority.",
+  "swarm_nodes": [
+    {
+      "name": "Vitor",
+      "role": "Tech Lead",
+      "domain": "Diffusion model architecture, stateful runtimes, and core codebase implementation."
+    },
+    {
+      "name": "Alexa",
+      "role": "COO & Product Strategist",
+      "domain": "Grant compliance, budget justification, product strategy, and operational alignment."
+    },
+    {
+      "name": "Treasury Agent",
+      "role": "Autonomous Executor",
+      "domain": "Data extraction, pipeline orchestration, and automated API submissions."
+    }
+  ]
+}

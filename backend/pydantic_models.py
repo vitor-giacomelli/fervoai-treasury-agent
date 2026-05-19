@@ -26,6 +26,19 @@ class PitchResult(BaseModel):
     status: str
 
 
+class SwarmNode(BaseModel):
+    name: str = Field(..., max_length=120)
+    role: str = Field(..., max_length=120)
+    domain: str = Field(..., max_length=400)
+
+
+class CompanyState(BaseModel):
+    ecosystem: str = Field(..., max_length=120)
+    core_infrastructure: str = Field(..., max_length=600)
+    runway_preference: str = Field(..., max_length=600)
+    swarm_nodes: list[SwarmNode] = Field(default_factory=list)
+
+
 class StreamEnvelope(BaseModel):
     type: str
     text: str | None = None
