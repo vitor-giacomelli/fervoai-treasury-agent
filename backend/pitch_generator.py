@@ -90,10 +90,16 @@ class PitchGenerator:
 
         prompt = (
             "You are an expert grant writer. Write a concise enterprise-ready pitch in 150-200 words.\n"
-            f"Startup: {startup_name}\n"
+            f"Startup ecosystem: {startup_name}\n"
             f"Focus area: {focus_area}\n"
             f"Grant: {grant.title}\n"
             f"Agency: {grant.agency}\n"
+            "Narrative hierarchy requirements:\n"
+            "1) The primary subject is the Treasury Agent (fervoAI.treasury).\n"
+            "2) Frame the Treasury Agent as the autonomous infrastructure being proposed/deployed to solve the grant's core problem.\n"
+            "3) Use action verbs tied to the Treasury Agent as the active entity doing the work.\n"
+            "4) Mention FERVOAI only as the overarching ecosystem/creator, not the main actor.\n"
+            "5) The opening sentence must introduce the Treasury Agent as the lead solution.\n"
             "Use Triple-Horizon framing: acute pain, technical deviation, macro lock."
         )
 
@@ -102,8 +108,13 @@ class PitchGenerator:
                 model=self.primary_model,
                 contents=prompt,
             )
+            draft = self._enforce_treasury_agent_hierarchy(
+                draft=(response.text or "").strip(),
+                startup_name=startup_name,
+                focus_area=focus_area,
+            )
             return PitchResult(
-                pitch_draft=(response.text or "").strip(),
+                pitch_draft=draft,
                 model_used=self.primary_model,
                 status="SUCCESS",
             )
@@ -113,8 +124,13 @@ class PitchGenerator:
                     model=self.fallback_model,
                     contents=prompt,
                 )
+                draft = self._enforce_treasury_agent_hierarchy(
+                    draft=(response.text or "").strip(),
+                    startup_name=startup_name,
+                    focus_area=focus_area,
+                )
                 return PitchResult(
-                    pitch_draft=(response.text or "").strip(),
+                    pitch_draft=draft,
                     model_used=self.fallback_model,
                     status="SUCCESS",
                 )
@@ -143,12 +159,27 @@ class PitchGenerator:
     ) -> PitchResult:
         return PitchResult(
             pitch_draft=(
-                f"{startup_name} is positioned to execute against {grant.title} by delivering "
-                f"an AI treasury capability focused on {focus_area}. Our approach directly targets "
-                "urgent enterprise inefficiencies, introduces differentiated autonomous decision loops, "
-                "and aligns with strategic resilience priorities. Funding will accelerate deployment, "
-                "validation, and measurable impact in mission-critical financial operations."
+                f"To solve the acute operational backlog, we propose deployment of the Treasury Agent "
+                f"(fervoAI.treasury), an autonomous infrastructure capability built within the {startup_name} ecosystem. "
+                f"The Treasury Agent addresses {grant.title} by orchestrating grant intelligence workflows focused on {focus_area}, "
+                "automating prioritization, synthesis, and execution loops in mission-critical financial operations. "
+                "FERVOAI remains the creator ecosystem context, while the Treasury Agent is the active entity delivering measurable outcomes."
             ),
             model_used=model_used,
             status="FALLBACK",
         )
+
+    @staticmethod
+    def _enforce_treasury_agent_hierarchy(draft: str, startup_name: str, focus_area: str) -> str:
+        text = draft.strip()
+        if not text:
+            return text
+
+        if "treasury agent" in text.lower():
+            return text
+
+        prefix = (
+            f"To solve the core challenge, we propose the Treasury Agent (fervoAI.treasury), "
+            f"an autonomous infrastructure capability within the {startup_name} ecosystem focused on {focus_area}. "
+        )
+        return f"{prefix}{text}"

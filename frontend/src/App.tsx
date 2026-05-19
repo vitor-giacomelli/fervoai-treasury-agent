@@ -126,27 +126,27 @@ function App() {
 
   return (
     <div className="bg-background text-foreground scanline-overlay min-h-screen">
-      <header className="border-border flex items-center justify-between border-b px-6 py-5">
-        <div className="font-heading text-5xl uppercase tracking-[0.08em] leading-none">
+      <header className="border-border flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+        <div className="font-heading text-4xl uppercase tracking-[0.08em] leading-none sm:text-5xl">
           fervo<span className="flame-gradient-text">ai</span>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="font-mono text-foreground/70 text-xs uppercase tracking-[0.12em]">NODE: FERVOAI.TECH</div>
-          <div className="font-mono text-xs uppercase tracking-[0.1em] text-success flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end sm:gap-6">
+          <div className="font-mono text-foreground/70 text-[10px] uppercase tracking-[0.12em] sm:text-xs">NODE: FERVOAI.TECH</div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-success flex items-center gap-2 sm:text-xs">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-success animate-pulse" />
             Link Established
           </div>
         </div>
       </header>
 
-      <main className="grid grid-cols-1 gap-6 p-6 xl:grid-cols-3">
-        <section className="bg-card border-border xl:col-span-2 rounded border">
+      <main className="grid grid-cols-1 gap-4 p-4 sm:gap-6 sm:p-6 xl:grid-cols-3">
+        <section className="order-2 md:order-1 bg-card border-border xl:col-span-2 rounded border">
           <div className="bg-card border-border flex items-center justify-between border-b px-4 py-3">
             <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Cognitive Telemetry</h2>
             <span className="font-mono text-foreground/60 text-xs uppercase tracking-[0.12em]">{stream.status}</span>
           </div>
 
-          <div className="log-scroll h-[70vh] overflow-y-auto p-4 font-mono text-sm">
+          <div className="log-scroll h-[46vh] sm:h-[70vh] overflow-y-auto p-4 font-mono text-sm">
             {telemetryLines.length === 0 && <p className="text-foreground/55">Awaiting stream handshake...</p>}
 
             {telemetryLines.map((line) => {
@@ -185,7 +185,7 @@ function App() {
           </div>
         </section>
 
-        <aside className="bg-card border-border rounded border">
+        <aside className="order-1 md:order-2 bg-card border-border rounded border">
           <div className="bg-card border-border border-b px-4 py-3">
             <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Action &amp; Output</h2>
           </div>
