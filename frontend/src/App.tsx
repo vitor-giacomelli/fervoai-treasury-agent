@@ -113,6 +113,7 @@ function App() {
   const [hasTriedSubmit, setHasTriedSubmit] = useState(false)
   const [recipientOverrides, setRecipientOverrides] = useState<Record<string, string>>({})
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle')
+  const [expandedNarrativeTargetId, setExpandedNarrativeTargetId] = useState<string | null>(null)
 
   const trimmedContext = businessContext.trim()
   const canExecute = trimmedContext.length > 0
@@ -237,6 +238,8 @@ function App() {
   const proposalMailtoHref = buildProposalExport
     ? `mailto:${mailtoRecipient}?subject=${encodeURIComponent(buildProposalExport.subject)}&body=${encodeURIComponent(buildProposalExport.body)}`
     : '#'
+  const isHuntMode = stream.status === 'connecting' || stream.status === 'connected'
+  const isLockMode = stream.status === 'completed'
 
   const quickPresets = [
     'Grid Modernization',
@@ -307,6 +310,22 @@ function App() {
       </header>
 
       <main className="grid grid-cols-1 gap-4 p-4 sm:gap-6 sm:p-6 xl:grid-cols-3">
+        <section className={`order-1 xl:col-span-3 rounded border px-4 py-3 transition-all duration-500 ${
+          isHuntMode
+            ? 'border-accent/50 bg-accent/10 shadow-[0_0_24px_hsl(var(--accent)/0.25)]'
+            : isLockMode
+              ? 'border-success/40 bg-success/10 shadow-[0_0_20px_hsl(var(--success)/0.2)]'
+              : 'border-border bg-card/70'
+        }`}>
+          <p className="text-[11px] font-mono uppercase tracking-[0.14em] text-foreground/70">
+            {isHuntMode
+              ? 'HUNTING LIVE FEDERAL DATA'
+              : isLockMode
+                ? 'TARGET LOCKED | EXECUTION PACKAGE READY'
+                : 'STANDBY | AWAITING STRATEGIC INPUT'}
+          </p>
+        </section>
+
         <section className="order-1 xl:col-span-3 rounded border border-border bg-card/80 p-3">
           <div className="flex flex-wrap items-center gap-2">
             {stageStates.map((stage) => (
@@ -326,7 +345,11 @@ function App() {
           </div>
         </section>
 
-        <section className="order-2 md:order-1 bg-card border-border xl:col-span-2 rounded border">
+        <section className={`order-2 md:order-1 xl:col-span-2 rounded border transition-all duration-500 ${
+          isHuntMode
+            ? 'bg-card border-accent/45 shadow-[0_0_24px_hsl(var(--accent)/0.2)]'
+            : 'bg-card border-border'
+        }`}>
           <div className="bg-card border-border flex items-center justify-between border-b px-4 py-3">
             <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Live Execution Narrative</h2>
             <span className="font-mono text-foreground/60 text-xs uppercase tracking-[0.12em]">{stream.status}</span>
@@ -353,13 +376,57 @@ function App() {
                       ? 'text-foreground/72'
                       : 'text-foreground/50'
               const rowClass = line.kind === 'target' ? 'flame-left-border pl-3' : ''
+              const isTargetExpanded = line.kind === 'target' && expandedNarrativeTargetId === line.id
+              const isCriticalThought =
+                line.kind === 'thought' &&
+                /(workflow booted|fetching grant opportunities|acquired \d+ candidate grants|selected )/i.test(line.content)
 
               return (
-                <div key={line.id} className={`border-border/50 mb-3 border-b pb-3 last:border-b-0 ${rowClass}`}>
-                  <div className={`text-[11px] tracking-[0.11em] uppercase ${labelClass}`}>
-                    [{new Date(line.timestamp).toLocaleTimeString()}] {line.label}
-                  </div>
-                  <pre className={`mt-1 whitespace-pre-wrap break-words leading-relaxed ${bodyClass}`}>{line.content}</pre>
+                <div
+                  key={line.id}
+                  className={`border-border/50 mb-3 border-b pb-3 last:border-b-0 ${rowClass} ${
+                    isHuntMode && isCriticalThought ? 'rounded border border-accent/30 bg-accent/5 px-2' : ''
+                  }`}
+                >
+                  {line.kind === 'target' ? (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedNarrativeTargetId((prev) => (prev === line.id ? null : line.id))}
+                      className="w-full text-left"
+                    >
+                      <div className={`text-[11px] tracking-[0.11em] uppercase ${labelClass}`}>
+                        [{new Date(line.timestamp).toLocaleTimeString()}] {line.label} {isTargetExpanded ? '[-]' : '[+]'}
+                      </div>
+                      <pre className={`mt-1 whitespace-pre-wrap break-words leading-relaxed ${bodyClass}`}>
+                        {line.content.split('\n')[0]}
+                      </pre>
+                    </button>
+                  ) : (
+                    <>
+                      <div className={`text-[11px] tracking-[0.11em] uppercase ${labelClass}`}>
+                        [{new Date(line.timestamp).toLocaleTimeString()}] {line.label}
+                      </div>
+                      <pre className={`mt-1 whitespace-pre-wrap break-words leading-relaxed ${bodyClass}`}>{line.content}</pre>
+                    </>
+                  )}
+
+                  {isTargetExpanded && activeTarget ? (
+                    <div className="mt-3 rounded-md border border-accent/35 bg-card/80 p-3">
+                      <p className="text-[11px] font-mono uppercase tracking-[0.11em] text-foreground/60">
+                        Opportunity Summary
+                      </p>
+                      <h4 className="mt-1 text-sm font-semibold text-foreground">{decodeHtmlEntities(activeTarget.title)}</h4>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-foreground/70 font-mono">
+                        <p>Agency: {activeTarget.agency}</p>
+                        <p>ID: {activeTarget.opportunity_number}</p>
+                        <p>Close: {activeTarget.close_date}</p>
+                        <p>Award: {activeTarget.award_floor || 'N/A'} - {activeTarget.award_ceiling || 'N/A'}</p>
+                      </div>
+                      <p className="mt-2 text-xs text-foreground/75 leading-relaxed">
+                        {truncateText(decodeHtmlEntities(activeTarget.description?.trim() || 'No description available.'), 240)}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               )
             })}
@@ -371,7 +438,15 @@ function App() {
           </div>
         </section>
 
-        <aside className="order-1 md:order-2 bg-card border-border rounded border">
+        <aside
+          className={`order-1 md:order-2 rounded border transition-all duration-500 ${
+            isHuntMode
+              ? 'bg-card/80 border-border opacity-75'
+              : isLockMode
+                ? 'bg-card border-success/35 shadow-[0_0_20px_hsl(var(--success)/0.18)] opacity-100'
+                : 'bg-card border-border'
+          }`}
+        >
           <div className="bg-card border-border border-b px-4 py-3">
             <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Treasury Agent Console</h2>
           </div>
@@ -433,7 +508,7 @@ function App() {
                 <div className="text-success text-xs font-mono font-bold tracking-widest mb-2 border-b border-success/30 pb-1">
                   TARGET ACQUIRED
                 </div>
-                {activeTarget ? (
+                {activeTarget && isLockMode ? (
                   <div className="mt-4 translate-y-0 space-y-4 opacity-100 transition-all duration-500 ease-out">
                     <h3 className="text-lg font-bold text-foreground mb-1">{activeTarget.title}</h3>
                     <p className="text-xs uppercase tracking-[0.11em] text-foreground/55 font-mono">
@@ -507,7 +582,9 @@ function App() {
                   </div>
                 ) : (
                   <div className="mt-4 translate-y-4 opacity-70 transition-all duration-500 ease-out">
-                    <p className="text-sm text-muted">No opportunity selected yet.</p>
+                    <p className="text-sm text-muted">
+                      {isHuntMode ? 'Telemetry hunt in progress. Target card will lock on completion.' : 'No opportunity selected yet.'}
+                    </p>
                   </div>
                 )}
               </div>
@@ -515,7 +592,7 @@ function App() {
 
             <div className="mt-4 p-4 bg-card/70 border-l-2 border-info rounded-r-lg">
               <h3 className="font-heading mb-2 text-xl uppercase tracking-[0.08em]">Treasury Agent Proposal</h3>
-              {stream.pitch ? (
+              {stream.pitch && isLockMode ? (
                 <div className="translate-y-0 opacity-100 transition-all duration-500 ease-out">
                   <p className="font-mono text-foreground/60 mb-2 text-xs uppercase">
                     {stream.pitch.model_used} | {stream.pitch.status}
@@ -575,7 +652,9 @@ function App() {
                 </div>
               ) : (
                 <div className="translate-y-4 opacity-70 transition-all duration-500 ease-out">
-                  <p className="font-body text-foreground/60 text-sm">No proposal generated yet.</p>
+                  <p className="font-body text-foreground/60 text-sm">
+                    {isHuntMode ? 'Compiling proposal package from live hunt...' : 'No proposal generated yet.'}
+                  </p>
                 </div>
               )}
               {stream.error && <p className="font-mono text-danger mt-3 text-xs">{stream.error}</p>}
