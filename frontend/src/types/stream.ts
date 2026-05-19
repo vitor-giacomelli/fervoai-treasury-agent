@@ -25,10 +25,30 @@ export interface GrantCandidate {
   url?: string
 }
 
+export interface FeasibilityScore {
+  technical_fit: number
+  compliance_readiness: number
+  capital_efficiency: number
+  execution_confidence: number
+  composite_score: number
+  rationale: string
+}
+
+export interface SwarmTask {
+  assignee: string
+  objective: string
+  domain_alignment: string
+  expected_output: string
+  priority: string
+  status: string
+}
+
 export interface PitchPayload {
   pitch_draft: string
   model_used: string
   status: string
+  feasibility_score: FeasibilityScore
+  swarm_tasks: SwarmTask[]
 }
 
 export interface TreasuryStreamState {
