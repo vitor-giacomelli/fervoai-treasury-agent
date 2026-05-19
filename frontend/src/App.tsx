@@ -147,7 +147,7 @@ function App() {
       <main className="grid grid-cols-1 gap-4 p-4 sm:gap-6 sm:p-6 xl:grid-cols-3">
         <section className="order-2 md:order-1 bg-card border-border xl:col-span-2 rounded border">
           <div className="bg-card border-border flex items-center justify-between border-b px-4 py-3">
-            <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Cognitive Telemetry</h2>
+            <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Live Execution Narrative</h2>
             <span className="font-mono text-foreground/60 text-xs uppercase tracking-[0.12em]">{stream.status}</span>
           </div>
 
@@ -192,7 +192,7 @@ function App() {
 
         <aside className="order-1 md:order-2 bg-card border-border rounded border">
           <div className="bg-card border-border border-b px-4 py-3">
-            <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Action &amp; Output</h2>
+            <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Treasury Agent Console</h2>
           </div>
 
           <div className="space-y-5 p-4">
@@ -224,7 +224,7 @@ function App() {
               disabled={!canExecute}
               className="flame-gradient font-heading text-background hover:text-background disabled:text-background/50 disabled:cursor-not-allowed disabled:opacity-55 w-full rounded px-4 py-3 text-2xl uppercase tracking-[0.1em] shadow-[0_0_24px_hsl(var(--accent)/0.25)] border-transparent"
             >
-              Command Override
+              Run Treasury Agent
             </Button>
 
             <div className="bg-card/80 border border-success/30 rounded-lg p-4 shadow-[0_0_15px_hsl(var(--success)/0.12)]">
