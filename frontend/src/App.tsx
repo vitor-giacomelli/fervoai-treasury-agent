@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useMemo, useState, type ReactNode } from 'react'
 
 import { Button } from './components/ui/button'
 import { useTreasuryStream } from './hooks/useTreasuryStream'
@@ -102,7 +102,7 @@ function App() {
   const stream = useTreasuryStream()
   const [businessContext, setBusinessContext] = useState('')
   const [hasTriedSubmit, setHasTriedSubmit] = useState(false)
-  const [proposalRecipient, setProposalRecipient] = useState('')
+  const [recipientOverrides, setRecipientOverrides] = useState<Record<string, string>>({})
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle')
 
   const trimmedContext = businessContext.trim()
@@ -168,10 +168,11 @@ function App() {
 
   const activeTarget = stream.grants[0] ?? null
   const activeDeadlineSignal = activeTarget ? getDeadlineSignal(activeTarget.close_date) : null
-
-  useEffect(() => {
-    setProposalRecipient(activeTarget?.recipient_email?.trim() || '')
-  }, [activeTarget?.opportunity_number, activeTarget?.recipient_email])
+  const activeOpportunityKey = activeTarget?.opportunity_number ?? ''
+  const defaultRecipient = activeTarget?.recipient_email?.trim() || ''
+  const proposalRecipient = activeOpportunityKey
+    ? (recipientOverrides[activeOpportunityKey] ?? defaultRecipient)
+    : defaultRecipient
 
   const buildProposalExport = useMemo(() => {
     if (!stream.pitch) {
@@ -438,7 +439,15 @@ function App() {
                       id="proposal-recipient"
                       type="email"
                       value={proposalRecipient}
-                      onChange={(event) => setProposalRecipient(event.target.value)}
+                      onChange={(event) => {
+                        if (!activeOpportunityKey) {
+                          return
+                        }
+                        setRecipientOverrides((prev) => ({
+                          ...prev,
+                          [activeOpportunityKey]: event.target.value,
+                        }))
+                      }}
                       placeholder="recipient@agency.gov"
                       className="bg-background border-border font-mono text-foreground placeholder:text-foreground/35 focus:border-accent focus:ring-danger/30 w-full rounded border px-3 py-2 text-xs outline-none transition focus:ring-2"
                     />
