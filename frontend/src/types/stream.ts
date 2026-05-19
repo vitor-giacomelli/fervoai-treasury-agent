@@ -17,6 +17,11 @@ export interface GrantCandidate {
   agency: string
   close_date: string
   category: string
+  description?: string
+  award_ceiling?: string
+  award_floor?: string
+  post_date?: string
+  url?: string
 }
 
 export interface PitchPayload {

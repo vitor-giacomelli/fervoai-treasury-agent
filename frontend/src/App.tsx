@@ -11,6 +11,13 @@ type TelemetryLine = {
   timestamp: string
 }
 
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text
+  }
+  return `${text.slice(0, maxLength - 3).trimEnd()}...`
+}
+
 function renderPitchLine(text: string): ReactNode[] {
   const segments = text.split(/(\*\*[^*]+\*\*)/g)
   return segments.map((segment, index) => {
@@ -129,7 +136,7 @@ function App() {
       <header className="border-border flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
         <div>
           <div className="font-heading text-4xl uppercase tracking-[0.08em] leading-none sm:text-5xl">
-            Treasury Agent
+            Treasury <span className="flame-gradient-text">Agent</span>
           </div>
           <p className="mt-1 font-body text-[11px] uppercase tracking-[0.12em] text-foreground/55">
             A FERVOAI product
@@ -235,20 +242,54 @@ function App() {
                 {activeTarget ? (
                   <div className="mt-4 translate-y-0 space-y-4 opacity-100 transition-all duration-500 ease-out">
                     <h3 className="text-lg font-bold text-foreground mb-1">{activeTarget.title}</h3>
-                    <div className="grid grid-cols-2 gap-2 text-xs text-foreground/70 font-mono mt-3">
+                    <p className="text-xs uppercase tracking-[0.11em] text-foreground/55 font-mono">
+                      {activeTarget.agency} | {activeTarget.category}
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-3 text-xs text-foreground/70 font-mono mt-3">
                       <div>
-                        <p className="uppercase tracking-[0.12em] text-muted">Agency</p>
-                        <p className="mt-1 text-foreground/85">{activeTarget.agency}</p>
-                      </div>
-                      <div>
-                        <p className="uppercase tracking-[0.12em] text-muted">ID</p>
+                        <p className="uppercase tracking-[0.12em] text-muted">Opportunity ID</p>
                         <p className="mt-1 text-foreground/85">{activeTarget.opportunity_number}</p>
                       </div>
-                      <div className="col-span-2">
-                        <p className="uppercase tracking-[0.12em] text-muted">Date</p>
+                      <div>
+                        <p className="uppercase tracking-[0.12em] text-muted">Posted</p>
+                        <p className="mt-1 text-foreground/85">{activeTarget.post_date || 'Not specified'}</p>
+                      </div>
+                      <div>
+                        <p className="uppercase tracking-[0.12em] text-muted">Closes</p>
                         <p className="mt-1 text-foreground/85">{activeTarget.close_date}</p>
                       </div>
+                      <div>
+                        <p className="uppercase tracking-[0.12em] text-muted">Category</p>
+                        <p className="mt-1 text-foreground/85">{activeTarget.category}</p>
+                      </div>
+                      <div>
+                        <p className="uppercase tracking-[0.12em] text-muted">Award Floor</p>
+                        <p className="mt-1 text-foreground/85">{activeTarget.award_floor || 'Not specified'}</p>
+                      </div>
+                      <div>
+                        <p className="uppercase tracking-[0.12em] text-muted">Award Ceiling</p>
+                        <p className="mt-1 text-foreground/85">{activeTarget.award_ceiling || 'Not specified'}</p>
+                      </div>
                     </div>
+
+                    <div className="border border-border/60 rounded-md bg-card/65 px-3 py-2">
+                      <p className="uppercase tracking-[0.12em] text-muted text-[11px] font-mono">Grant Brief</p>
+                      <p className="mt-1 text-sm text-foreground/80 leading-relaxed">
+                        {truncateText(activeTarget.description?.trim() || 'No description provided for this opportunity yet.', 320)}
+                      </p>
+                    </div>
+
+                    {activeTarget.url ? (
+                      <a
+                        href={activeTarget.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center rounded border border-accent/40 px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.11em] text-foreground/85 transition hover:border-accent hover:text-foreground"
+                      >
+                        View Full Grant
+                      </a>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="mt-4 translate-y-4 opacity-70 transition-all duration-500 ease-out">
@@ -282,3 +323,4 @@ function App() {
 }
 
 export default App
+
