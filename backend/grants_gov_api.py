@@ -50,14 +50,31 @@ class GrantsGovAPI:
     async def search_grants(
         self,
         keyword: str,
-        limit: int = 20,
+        limit: int = 5,
         demo_mode: bool = False,
     ) -> list[GrantOpportunity]:
         if demo_mode:
             synthetic = await self._generate_synthetic_fallback(keyword=keyword, limit=limit)
             return [GrantOpportunity(**item) for item in synthetic]
 
-        hits = await self._search_by_keyword(keyword=keyword, limit=limit)
+        keywords = [keyword]
+        if self.synthetic_enabled and self.client is not None and self._is_descriptive_query(keyword):
+            keywords = await self._expand_search_keywords(keyword)
+        logger.info("[QUERY EXPANSION] Expanded target vectors: %s", keywords)
+
+        search_results = await asyncio.gather(
+            *[self._search_by_keyword(keyword=item, limit=limit) for item in keywords],
+            return_exceptions=True,
+        )
+
+        combined_hits: list[dict[str, str]] = []
+        for idx, result in enumerate(search_results):
+            if isinstance(result, Exception):
+                logger.warning("Keyword search branch failed for '%s': %s", keywords[idx], result)
+                continue
+            combined_hits.extend(result)
+        deduped_hits = self._dedupe_hits_by_opportunity_number(combined_hits)
+        hits = sorted(deduped_hits, key=lambda item: self._parse_date(item.get("close_date", "")))[:limit]
         if not hits:
             logger.warning("No live grants found, generating synthetic fallback via Gemini")
             hits = await self._generate_synthetic_fallback(keyword=keyword, limit=limit)
@@ -73,6 +90,56 @@ class GrantsGovAPI:
             synthetic = await self._generate_synthetic_fallback(keyword=keyword, limit=limit)
             normalized = [GrantOpportunity(**item) for item in synthetic]
         return normalized
+
+    async def _expand_search_keywords(self, query: str) -> list[str]:
+        prompt = (
+            "Given this startup context: "
+            f"'{query}', generate up to 3 distinct, high-impact, short search keywords "
+            "or phrases (maximum 2-3 words each) optimized for searching active federal "
+            "grants on Grants.gov. Focus on different technical facets of the business "
+            "(e.g., if it's AI infrastructure, terms could be 'Artificial Intelligence', "
+            "'Advanced Computing', 'Cloud Infrastructure'). Return ONLY a valid JSON array "
+            'of strings. Example: ["Keyword1", "Keyword2", "Keyword3"]. Do not wrap in '
+            "markdown code blocks."
+        )
+        try:
+            response = self.client.models.generate_content(
+                model=self.synthetic_model,
+                contents=prompt,
+            )
+            parsed = self._extract_json_payload(response.text or "")
+            if isinstance(parsed, list):
+                cleaned = [
+                    str(item).strip()
+                    for item in parsed
+                    if isinstance(item, str) and str(item).strip()
+                ]
+                if cleaned:
+                    return cleaned[:3]
+        except Exception as err:
+            logger.warning("Keyword expansion failed for query '%s': %s", query, err)
+        return [query]
+
+    @staticmethod
+    def _is_descriptive_query(query: str) -> bool:
+        words = [part for part in re.split(r"\s+", query.strip()) if part]
+        return len(words) >= 2 or len(query.strip()) >= 16
+
+    @staticmethod
+    def _dedupe_hits_by_opportunity_number(hits: list[dict[str, str]]) -> list[dict[str, str]]:
+        deduped: list[dict[str, str]] = []
+        seen: set[str] = set()
+        for hit in hits:
+            opportunity_number = str(hit.get("opportunity_number", "")).strip()
+            if not opportunity_number:
+                deduped.append(hit)
+                continue
+            dedupe_key = opportunity_number.upper()
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+            deduped.append(hit)
+        return deduped
 
     async def _search_by_keyword(self, keyword: str, limit: int) -> list[dict[str, str]]:
         async with httpx.AsyncClient(
