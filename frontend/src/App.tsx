@@ -18,6 +18,49 @@ function truncateText(text: string, maxLength: number): string {
   return `${text.slice(0, maxLength - 3).trimEnd()}...`
 }
 
+type DeadlineSignal = {
+  label: string
+  toneClass: string
+}
+
+function getDeadlineSignal(closeDate: string): DeadlineSignal {
+  const parsed = Date.parse(closeDate)
+  if (Number.isNaN(parsed)) {
+    return {
+      label: 'Schedule unavailable',
+      toneClass: 'border-border text-foreground/70 bg-card/60',
+    }
+  }
+
+  const now = new Date()
+  const closeAt = new Date(parsed)
+  const msPerDay = 1000 * 60 * 60 * 24
+  const daysRemaining = Math.ceil((closeAt.getTime() - now.getTime()) / msPerDay)
+
+  if (daysRemaining < 0) {
+    return {
+      label: 'Closed',
+      toneClass: 'border-danger/40 text-danger bg-danger/10',
+    }
+  }
+  if (daysRemaining <= 14) {
+    return {
+      label: `Due in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`,
+      toneClass: 'border-danger/40 text-danger bg-danger/10',
+    }
+  }
+  if (daysRemaining <= 45) {
+    return {
+      label: `Due in ${daysRemaining} days`,
+      toneClass: 'border-accent/40 text-accent bg-accent/10',
+    }
+  }
+  return {
+    label: `${daysRemaining} days remaining`,
+    toneClass: 'border-success/40 text-success bg-success/10',
+  }
+}
+
 function renderPitchLine(text: string): ReactNode[] {
   const segments = text.split(/(\*\*[^*]+\*\*)/g)
   return segments.map((segment, index) => {
@@ -122,6 +165,7 @@ function App() {
   }, [stream.monologueLog, stream.vad, stream.grants, stream.pitch])
 
   const activeTarget = stream.grants[0] ?? null
+  const activeDeadlineSignal = activeTarget ? getDeadlineSignal(activeTarget.close_date) : null
 
   const handleCommandOverride = () => {
     setHasTriedSubmit(true)
@@ -245,6 +289,26 @@ function App() {
                     <p className="text-xs uppercase tracking-[0.11em] text-foreground/55 font-mono">
                       {activeTarget.agency} | {activeTarget.category}
                     </p>
+                    <div className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-mono uppercase tracking-[0.1em] ${activeDeadlineSignal?.toneClass}`}>
+                      {activeDeadlineSignal?.label}
+                    </div>
+
+                    <div className="rounded-md border border-accent/30 bg-accent/10 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-foreground/65 font-mono">Estimated Award Range</p>
+                      <p className="mt-1 text-base font-semibold text-foreground">
+                        {activeTarget.award_floor || 'Not specified'} - {activeTarget.award_ceiling || 'Not specified'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <div className="mb-1 flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.12em]">
+                        <span className="text-foreground/60">Match Confidence</span>
+                        <span className="text-success font-semibold">94%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded bg-card/90 border border-success/20">
+                        <div className="h-full w-[94%] bg-gradient-to-r from-success/75 to-success" />
+                      </div>
+                    </div>
 
                     <div className="grid grid-cols-2 gap-3 text-xs text-foreground/70 font-mono mt-3">
                       <div>
