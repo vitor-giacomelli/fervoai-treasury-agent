@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { Button } from './components/ui/button'
 import { useTreasuryStream } from './hooks/useTreasuryStream'
@@ -16,6 +16,26 @@ function truncateText(text: string, maxLength: number): string {
     return text
   }
   return `${text.slice(0, maxLength - 3).trimEnd()}...`
+}
+
+function firstSentence(text: string): string {
+  const normalized = text.trim()
+  if (!normalized) {
+    return ''
+  }
+  const parts = normalized.split(/[.!?]\s/)
+  return parts[0] || normalized
+}
+
+function swarmStatusTone(status: string): string {
+  const normalized = status.trim().toLowerCase()
+  if (normalized === 'dispatched' || normalized === 'completed') {
+    return 'bg-success'
+  }
+  if (normalized === 'in_progress' || normalized === 'queued') {
+    return 'bg-accent'
+  }
+  return 'bg-foreground/45'
 }
 
 function decodeHtmlEntities(text: string): string {
@@ -114,6 +134,7 @@ function App() {
   const [recipientOverrides, setRecipientOverrides] = useState<Record<string, string>>({})
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle')
   const [expandedNarrativeTargetId, setExpandedNarrativeTargetId] = useState<string | null>(null)
+  const [swarmDispatched, setSwarmDispatched] = useState(false)
 
   const trimmedContext = businessContext.trim()
   const canExecute = trimmedContext.length > 0
@@ -288,6 +309,12 @@ function App() {
     setHasTriedSubmit(false)
     stream.runQuery(preset)
   }
+
+  useEffect(() => {
+    if (stream.status !== 'completed') {
+      setSwarmDispatched(false)
+    }
+  }, [stream.status, stream.pitch])
 
   return (
     <div className="bg-background text-foreground scanline-overlay min-h-screen">
@@ -504,207 +531,178 @@ function App() {
             </Button>
 
             <div className="bg-card/80 border border-success/30 rounded-lg p-4 shadow-[0_0_15px_hsl(var(--success)/0.12)]">
-              <div>
-                <div className="text-success text-xs font-mono font-bold tracking-widest mb-2 border-b border-success/30 pb-1">
-                  TARGET ACQUIRED
+              <div className="text-success text-xs font-mono font-bold tracking-widest mb-2 border-b border-success/30 pb-1">
+                TARGET ACQUIRED
+              </div>
+              {activeTarget && isLockMode ? (
+                <div className="translate-y-0 opacity-100 transition-all duration-500 ease-out">
+                  <div className="grid grid-cols-1 md:grid-cols-[1.5fr_1fr_1fr] gap-2 items-center">
+                    <h3 className="text-base font-bold text-foreground truncate">{activeTarget.title}</h3>
+                    <p className="text-xs font-mono text-foreground/70 truncate">ID: {activeTarget.opportunity_number}</p>
+                    <p className="text-xs font-mono text-foreground/70 truncate">Close: {activeTarget.close_date}</p>
+                  </div>
                 </div>
-                {activeTarget && isLockMode ? (
-                  <div className="mt-4 translate-y-0 space-y-4 opacity-100 transition-all duration-500 ease-out">
-                    <h3 className="text-lg font-bold text-foreground mb-1">{activeTarget.title}</h3>
-                    <p className="text-xs uppercase tracking-[0.11em] text-foreground/55 font-mono">
-                      {activeTarget.agency} | {activeTarget.category}
+              ) : (
+                <div className="mt-4 translate-y-4 opacity-70 transition-all duration-500 ease-out">
+                  <p className="text-sm text-muted">
+                    {isHuntMode ? 'Telemetry hunt in progress. Target card will lock on completion.' : 'No opportunity selected yet.'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+              <div className="md:col-span-2 rounded-r-lg border-l-2 border-info bg-card/70 p-4">
+                <h3 className="font-heading mb-2 text-xl uppercase tracking-[0.08em]">Treasury Agent Proposal Package</h3>
+                {stream.pitch && isLockMode ? (
+                  <div className="translate-y-0 opacity-100 transition-all duration-500 ease-out">
+                    <p className="font-mono text-foreground/60 mb-2 text-xs uppercase">
+                      {stream.pitch.model_used} | {stream.pitch.status}
                     </p>
-                    <div className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-mono uppercase tracking-[0.1em] ${activeDeadlineSignal?.toneClass}`}>
-                      {activeDeadlineSignal?.label}
+                    <div className="max-h-[400px] overflow-y-auto pr-1">
+                      <PitchText text={stream.pitch.pitch_draft} />
                     </div>
-
-                    <div className="rounded-md border border-accent/30 bg-accent/10 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.12em] text-foreground/65 font-mono">Estimated Award Range</p>
-                      <p className="mt-1 text-base font-semibold text-foreground">
-                        {activeTarget.award_floor || 'Not specified'} - {activeTarget.award_ceiling || 'Not specified'}
-                      </p>
+                    <div className="mt-4 grid grid-cols-1 gap-2">
+                      <label htmlFor="proposal-recipient" className="text-[11px] font-mono uppercase tracking-[0.1em] text-foreground/60">
+                        Recipient Email
+                      </label>
+                      <input
+                        id="proposal-recipient"
+                        type="email"
+                        value={proposalRecipient}
+                        onChange={(event) => {
+                          if (!activeOpportunityKey) {
+                            return
+                          }
+                          setRecipientOverrides((prev) => ({
+                            ...prev,
+                            [activeOpportunityKey]: event.target.value,
+                          }))
+                        }}
+                        placeholder="recipient@agency.gov"
+                        className="bg-background border-border font-mono text-foreground placeholder:text-foreground/35 focus:border-accent focus:ring-danger/30 w-full rounded border px-3 py-2 text-xs outline-none transition focus:ring-2"
+                      />
+                      {!proposalRecipient.trim() && (
+                        <p className="text-[11px] text-foreground/55 font-mono">
+                          No contact email available in this listing. You can fill one manually.
+                        </p>
+                      )}
                     </div>
-
-                    <div>
-                      <div className="mb-1 flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.12em]">
-                        <span className="text-foreground/60">Match Confidence</span>
-                        <span className="text-success font-semibold">94%</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded bg-card/90 border border-success/20">
-                        <div className="h-full w-[94%] bg-gradient-to-r from-success/75 to-success" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 text-xs text-foreground/70 font-mono mt-3">
-                      <div>
-                        <p className="uppercase tracking-[0.12em] text-muted">Opportunity ID</p>
-                        <p className="mt-1 text-foreground/85">{activeTarget.opportunity_number}</p>
-                      </div>
-                      <div>
-                        <p className="uppercase tracking-[0.12em] text-muted">Posted</p>
-                        <p className="mt-1 text-foreground/85">{activeTarget.post_date || 'Not specified'}</p>
-                      </div>
-                      <div>
-                        <p className="uppercase tracking-[0.12em] text-muted">Closes</p>
-                        <p className="mt-1 text-foreground/85">{activeTarget.close_date}</p>
-                      </div>
-                      <div>
-                        <p className="uppercase tracking-[0.12em] text-muted">Category</p>
-                        <p className="mt-1 text-foreground/85">{activeTarget.category}</p>
-                      </div>
-                      <div>
-                        <p className="uppercase tracking-[0.12em] text-muted">Award Floor</p>
-                        <p className="mt-1 text-foreground/85">{activeTarget.award_floor || 'Not specified'}</p>
-                      </div>
-                      <div>
-                        <p className="uppercase tracking-[0.12em] text-muted">Award Ceiling</p>
-                        <p className="mt-1 text-foreground/85">{activeTarget.award_ceiling || 'Not specified'}</p>
-                      </div>
-                    </div>
-
-                    <div className="border border-border/60 rounded-md bg-card/65 px-3 py-2">
-                      <p className="uppercase tracking-[0.12em] text-muted text-[11px] font-mono">Grant Brief</p>
-                      <p className="mt-1 text-sm text-foreground/80 leading-relaxed">
-                        {truncateText(activeTarget.description?.trim() || 'No description provided for this opportunity yet.', 320)}
-                      </p>
-                    </div>
-
-                    {activeTarget.url ? (
-                      <a
-                        href={activeTarget.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center rounded border border-accent/40 px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.11em] text-foreground/85 transition hover:border-accent hover:text-foreground"
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCopyProposal}
+                        className="rounded border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.11em] text-foreground/85 transition hover:border-accent hover:text-foreground"
                       >
-                        View Full Grant
+                        {copyStatus === 'copied' ? 'Copied' : copyStatus === 'error' ? 'Copy Failed' : 'Copy Proposal'}
+                      </button>
+                      <a
+                        href={proposalMailtoHref}
+                        onClick={(event) => {
+                          if (!mailtoRecipient || !buildProposalExport) {
+                            event.preventDefault()
+                          }
+                        }}
+                        aria-disabled={!mailtoRecipient || !buildProposalExport}
+                        className={`rounded border px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.11em] transition ${
+                          mailtoRecipient && buildProposalExport
+                            ? 'border-info/40 text-foreground/85 hover:border-info hover:text-foreground'
+                            : 'border-border text-foreground/40 cursor-not-allowed'
+                        }`}
+                      >
+                        Send by Email
                       </a>
-                    ) : null}
+                    </div>
                   </div>
                 ) : (
-                  <div className="mt-4 translate-y-4 opacity-70 transition-all duration-500 ease-out">
-                    <p className="text-sm text-muted">
-                      {isHuntMode ? 'Telemetry hunt in progress. Target card will lock on completion.' : 'No opportunity selected yet.'}
+                  <div className="translate-y-4 opacity-70 transition-all duration-500 ease-out">
+                    <p className="font-body text-foreground/60 text-sm">
+                      {isHuntMode ? 'Compiling proposal package from live hunt...' : 'No proposal generated yet.'}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="md:col-span-1 space-y-4">
+                {stream.pitch && isLockMode ? (
+                  <>
+                    <div className="rounded-md border border-info/35 bg-info/10 p-3">
+                      <h4 className="text-[11px] font-mono uppercase tracking-[0.12em] text-foreground/75">
+                        FEASIBILITY MATRIX
+                      </h4>
+                      <div className="mt-3 space-y-2">
+                        {[
+                          { label: 'Technical Fit', value: stream.pitch.feasibility_score.technical_fit },
+                          { label: 'Compliance', value: stream.pitch.feasibility_score.compliance_readiness },
+                          { label: 'Capital Efficiency', value: stream.pitch.feasibility_score.capital_efficiency },
+                          { label: 'Execution', value: stream.pitch.feasibility_score.execution_confidence },
+                        ].map((metric) => (
+                          <div key={metric.label}>
+                            <div className="mb-1 flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.1em]">
+                              <span className="text-foreground/65">{metric.label}</span>
+                              <span className="text-foreground/85">{metric.value}%</span>
+                            </div>
+                            <div className="h-1.5 overflow-hidden rounded bg-card/85 border border-success/20">
+                              <div
+                                className="h-full bg-gradient-to-r from-success/70 to-success"
+                                style={{ width: `${Math.max(0, Math.min(100, metric.value))}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 rounded border border-success/30 bg-success/10 px-3 py-2 text-center">
+                        <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-foreground/65">Composite</p>
+                        <p className="text-2xl font-bold text-success">{stream.pitch.feasibility_score.composite_score}%</p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-md border border-accent/35 bg-accent/10 p-3">
+                      <h4 className="text-[11px] font-mono uppercase tracking-[0.12em] text-foreground/75">
+                        SWARM PROTOCOL
+                      </h4>
+                      <div className="mt-2 space-y-2">
+                        {stream.pitch.swarm_tasks.map((task, index) => (
+                          <div
+                            key={`${task.assignee}-${index}-${task.objective.slice(0, 18)}`}
+                            className="rounded border border-border/80 bg-card/85 p-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-semibold text-foreground">{task.assignee}</span>
+                              <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-[0.1em] text-foreground/70">
+                                <span className={`h-2 w-2 rounded-full ${swarmStatusTone(swarmDispatched ? 'dispatched' : 'queued')}`} />
+                                {swarmDispatched ? 'Dispatched' : 'Queued'}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-foreground/80 leading-relaxed">
+                              {truncateText(firstSentence(task.objective), 95)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSwarmDispatched(true)}
+                        className={`mt-4 w-full rounded border px-3 py-2 text-xs font-mono font-bold uppercase tracking-[0.12em] transition ${
+                          swarmDispatched
+                            ? 'border-success/45 bg-success/15 text-success'
+                            : 'border-accent/50 bg-accent/12 text-foreground hover:border-accent hover:bg-accent/20'
+                        }`}
+                      >
+                        {swarmDispatched ? '[ SWARM DISPATCHED ]' : '[ DEPLOY SWARM WORKFLOW ]'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-md border border-border bg-card/70 p-3">
+                    <p className="text-xs text-foreground/60">
+                      {isHuntMode ? 'State matrix compiling...' : 'Feasibility and swarm protocol will render after lock.'}
                     </p>
                   </div>
                 )}
               </div>
             </div>
-
-            <div className="mt-4 p-4 bg-card/70 border-l-2 border-info rounded-r-lg">
-              <h3 className="font-heading mb-2 text-xl uppercase tracking-[0.08em]">Treasury Agent Proposal Package</h3>
-              {stream.pitch && isLockMode ? (
-                <div className="translate-y-0 opacity-100 transition-all duration-500 ease-out">
-                  <p className="font-mono text-foreground/60 mb-2 text-xs uppercase">
-                    {stream.pitch.model_used} | {stream.pitch.status}
-                  </p>
-                  <div className="mb-4 rounded-md border border-info/35 bg-info/10 p-3">
-                    <h4 className="text-[11px] font-mono uppercase tracking-[0.12em] text-foreground/75">
-                      FEASIBILITY MATRIX
-                    </h4>
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] font-mono text-foreground/80">
-                      <p>Technical Fit: {stream.pitch.feasibility_score.technical_fit}%</p>
-                      <p>Compliance Readiness: {stream.pitch.feasibility_score.compliance_readiness}%</p>
-                      <p>Capital Efficiency: {stream.pitch.feasibility_score.capital_efficiency}%</p>
-                      <p>Execution Confidence: {stream.pitch.feasibility_score.execution_confidence}%</p>
-                    </div>
-                    <div className="mt-3">
-                      <div className="mb-1 flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.11em]">
-                        <span className="text-foreground/65">Composite Score</span>
-                        <span className="text-success font-semibold">{stream.pitch.feasibility_score.composite_score}%</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded bg-card/85 border border-success/20">
-                        <div
-                          className="h-full bg-gradient-to-r from-success/70 to-success"
-                          style={{ width: `${Math.max(0, Math.min(100, stream.pitch.feasibility_score.composite_score))}%` }}
-                        />
-                      </div>
-                    </div>
-                    <p className="mt-2 text-xs leading-relaxed text-foreground/75">
-                      {stream.pitch.feasibility_score.rationale}
-                    </p>
-                  </div>
-
-                  <div className="mb-4 rounded-md border border-accent/35 bg-accent/10 p-3">
-                    <h4 className="text-[11px] font-mono uppercase tracking-[0.12em] text-foreground/75">
-                      SWARM DELEGATION PROTOCOL
-                    </h4>
-                    <div className="mt-2 space-y-2">
-                      {stream.pitch.swarm_tasks.map((task, index) => (
-                        <div key={`${task.assignee}-${index}-${task.objective.slice(0, 18)}`} className="rounded border border-border/80 bg-card/85 p-2">
-                          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono uppercase tracking-[0.1em]">
-                            <span className="text-foreground/85">{task.assignee}</span>
-                            <span className="text-foreground/60">{task.priority} | {task.status}</span>
-                          </div>
-                          <p className="mt-1 text-xs text-foreground/80 leading-relaxed">{task.objective}</p>
-                          <p className="mt-1 text-[11px] text-foreground/65">Domain: {task.domain_alignment}</p>
-                          <p className="mt-1 text-[11px] text-foreground/65">Output: {task.expected_output}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mb-3 grid grid-cols-1 gap-2">
-                    <label htmlFor="proposal-recipient" className="text-[11px] font-mono uppercase tracking-[0.1em] text-foreground/60">
-                      Recipient Email
-                    </label>
-                    <input
-                      id="proposal-recipient"
-                      type="email"
-                      value={proposalRecipient}
-                      onChange={(event) => {
-                        if (!activeOpportunityKey) {
-                          return
-                        }
-                        setRecipientOverrides((prev) => ({
-                          ...prev,
-                          [activeOpportunityKey]: event.target.value,
-                        }))
-                      }}
-                      placeholder="recipient@agency.gov"
-                      className="bg-background border-border font-mono text-foreground placeholder:text-foreground/35 focus:border-accent focus:ring-danger/30 w-full rounded border px-3 py-2 text-xs outline-none transition focus:ring-2"
-                    />
-                    {!proposalRecipient.trim() && (
-                      <p className="text-[11px] text-foreground/55 font-mono">
-                        No contact email available in this listing. You can fill one manually.
-                      </p>
-                    )}
-                  </div>
-                  <div className="mb-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={handleCopyProposal}
-                      className="rounded border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.11em] text-foreground/85 transition hover:border-accent hover:text-foreground"
-                    >
-                      {copyStatus === 'copied' ? 'Copied' : copyStatus === 'error' ? 'Copy Failed' : 'Copy Proposal'}
-                    </button>
-                    <a
-                      href={proposalMailtoHref}
-                      onClick={(event) => {
-                        if (!mailtoRecipient || !buildProposalExport) {
-                          event.preventDefault()
-                        }
-                      }}
-                      aria-disabled={!mailtoRecipient || !buildProposalExport}
-                      className={`rounded border px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.11em] transition ${
-                        mailtoRecipient && buildProposalExport
-                          ? 'border-info/40 text-foreground/85 hover:border-info hover:text-foreground'
-                          : 'border-border text-foreground/40 cursor-not-allowed'
-                      }`}
-                    >
-                      Send by Email
-                    </a>
-                  </div>
-                  <PitchText text={stream.pitch.pitch_draft} />
-                </div>
-              ) : (
-                <div className="translate-y-4 opacity-70 transition-all duration-500 ease-out">
-                  <p className="font-body text-foreground/60 text-sm">
-                    {isHuntMode ? 'Compiling proposal package from live hunt...' : 'No proposal generated yet.'}
-                  </p>
-                </div>
-              )}
-              {stream.error && <p className="font-mono text-danger mt-3 text-xs">{stream.error}</p>}
-            </div>
+            {stream.error && <p className="font-mono text-danger mt-3 text-xs">{stream.error}</p>}
           </div>
         </aside>
       </main>
