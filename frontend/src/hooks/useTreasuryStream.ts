@@ -8,15 +8,9 @@ interface StreamEventEnvelope {
   payload?: unknown
 }
 
-const DEV_DEFAULT_API_BASE_URL =
-  typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-  ['5173', '4173'].includes(window.location.port)
-    ? 'http://localhost:8000'
-    : ''
-
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? DEV_DEFAULT_API_BASE_URL).replace(/\/$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 const STREAM_API_KEY = (import.meta.env.VITE_STREAM_API_KEY ?? '').trim()
+const STREAM_OPEN_TIMEOUT_MS = 12000
 
 export function useTreasuryStream(): TreasuryStreamState {
   const [status, setStatus] = useState<WorkflowStatus>('idle')
@@ -26,11 +20,16 @@ export function useTreasuryStream(): TreasuryStreamState {
   const [grants, setGrants] = useState<GrantCandidate[]>([])
   const [pitch, setPitch] = useState<PitchPayload | null>(null)
   const sourceRef = useRef<EventSource | null>(null)
+  const openTimeoutRef = useRef<number | null>(null)
   const completedRef = useRef(false)
   const closingRef = useRef(false)
 
   const closeSource = useCallback((isExpectedClose = true) => {
     closingRef.current = isExpectedClose
+    if (openTimeoutRef.current !== null && typeof window !== 'undefined') {
+      window.clearTimeout(openTimeoutRef.current)
+      openTimeoutRef.current = null
+    }
     if (sourceRef.current) {
       sourceRef.current.close()
       sourceRef.current = null
@@ -105,8 +104,24 @@ export function useTreasuryStream(): TreasuryStreamState {
     const streamUrl = `${API_BASE_URL}/api/stream_workflow?${streamParams.toString()}`
     const source = new EventSource(streamUrl)
     sourceRef.current = source
+    if (typeof window !== 'undefined') {
+      openTimeoutRef.current = window.setTimeout(() => {
+        if (completedRef.current || closingRef.current || sourceRef.current !== source) {
+          return
+        }
+        setStatus('error')
+        setError(
+          'Timed out while establishing workflow stream. Verify backend reachability and VITE_API_BASE_URL (prefer empty to use /api proxy).',
+        )
+        closeSource(false)
+      }, STREAM_OPEN_TIMEOUT_MS)
+    }
 
     source.onopen = () => {
+      if (openTimeoutRef.current !== null && typeof window !== 'undefined') {
+        window.clearTimeout(openTimeoutRef.current)
+        openTimeoutRef.current = null
+      }
       setStatus('connected')
     }
     source.onmessage = handleMessage
