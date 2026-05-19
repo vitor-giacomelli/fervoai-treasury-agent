@@ -20,12 +20,6 @@ class GrantOpportunity(BaseModel):
     source: str = Field(default="grants_gov", max_length=60)
 
 
-class PitchResult(BaseModel):
-    pitch_draft: str
-    model_used: str
-    status: str
-
-
 class SwarmNode(BaseModel):
     name: str = Field(..., max_length=120)
     role: str = Field(..., max_length=120)
@@ -37,6 +31,32 @@ class CompanyState(BaseModel):
     core_infrastructure: str = Field(..., max_length=600)
     runway_preference: str = Field(..., max_length=600)
     swarm_nodes: list[SwarmNode] = Field(default_factory=list)
+
+
+class FeasibilityScore(BaseModel):
+    technical_fit: int = Field(..., ge=0, le=100)
+    compliance_readiness: int = Field(..., ge=0, le=100)
+    capital_efficiency: int = Field(..., ge=0, le=100)
+    execution_confidence: int = Field(..., ge=0, le=100)
+    composite_score: int = Field(..., ge=0, le=100)
+    rationale: str = Field(default="", max_length=1200)
+
+
+class SwarmTask(BaseModel):
+    assignee: str = Field(..., max_length=120)
+    objective: str = Field(..., max_length=800)
+    domain_alignment: str = Field(default="", max_length=800)
+    expected_output: str = Field(default="", max_length=800)
+    priority: str = Field(default="P2", max_length=20)
+    status: str = Field(default="queued", max_length=40)
+
+
+class PitchResult(BaseModel):
+    pitch_draft: str
+    model_used: str
+    status: str
+    feasibility_score: FeasibilityScore
+    swarm_tasks: list[SwarmTask]
 
 
 class StreamEnvelope(BaseModel):
