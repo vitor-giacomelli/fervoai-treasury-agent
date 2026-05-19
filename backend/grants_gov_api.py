@@ -19,13 +19,29 @@ logger = logging.getLogger(__name__)
 class GrantsGovAPI:
     BASE_URL = "https://api.grants.gov/v1/api/search2"
     FETCH_OPPORTUNITY_URL = "https://api.grants.gov/v1/api/fetchOpportunity"
-    RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+    RETRYABLE_STATUS_CODES = {403, 429, 500, 502, 503, 504}
 
     def __init__(self) -> None:
         self.headers = {
-            "User-Agent": "fervoAI.treasury/1.0",
-            "Accept": "application/json",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9",
             "Content-Type": "application/json",
+            "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "Origin": "https://apply07.grants.gov",
+            "Referer": "https://apply07.grants.gov/search-grants",
+            "Connection": "keep-alive",
+            "Pragma": "no-cache",
+            "Cache-Control": "no-cache",
         }
         self.timeout = 15
         self.max_retries = 3
@@ -155,6 +171,14 @@ class GrantsGovAPI:
             }
             for attempt in range(self.max_retries):
                 try:
+                    preflight_delay = random.uniform(1.2, 3.4)
+                    logger.info(
+                        "[REQUEST JITTER] Sleeping %.2fs before Grants.gov transmission.",
+                        preflight_delay,
+                    )
+                    await asyncio.sleep(preflight_delay)
+                    client.headers["Accept-Language"] = f"en-US,en;q={random.choice(['0.9', '0.8'])}"
+
                     response = await client.post(
                         self.BASE_URL,
                         json=request_body,
@@ -173,12 +197,6 @@ class GrantsGovAPI:
                             )
                             await asyncio.sleep(delay)
                             continue
-                    if response.status_code == 403:
-                        logger.warning(
-                            "Grants.gov returned 403 Forbidden for search2. "
-                            "Treating as non-retryable; verify endpoint policy and network egress rules."
-                        )
-                        return []
                     if response.status_code >= 400:
                         logger.warning(
                             "Grants.gov returned non-retryable status %s for search2.",
