@@ -14,6 +14,7 @@ class GrantOpportunity(BaseModel):
     award_floor: str = Field(default="Not specified", max_length=80)
     close_date: str = Field(default="Not specified", max_length=80)
     post_date: str = Field(default="Not specified", max_length=80)
+    recipient_email: str = Field(default="", max_length=320)
     url: str = Field(default="", max_length=600)
     category: str = Field(default="Other", max_length=120)
     source: str = Field(default="grants_gov", max_length=60)

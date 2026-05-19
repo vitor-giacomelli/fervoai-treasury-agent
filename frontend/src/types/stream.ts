@@ -21,6 +21,7 @@ export interface GrantCandidate {
   award_ceiling?: string
   award_floor?: string
   post_date?: string
+  recipient_email?: string
   url?: string
 }
 

@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class GrantsGovAPI:
     BASE_URL = "https://api.grants.gov/v1/api/search2"
+    FETCH_OPPORTUNITY_URL = "https://api.grants.gov/v1/api/fetchOpportunity"
     RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
     def __init__(self) -> None:
@@ -187,6 +188,7 @@ class GrantsGovAPI:
                     payload = response.json()
                     opp_hits = self._extract_opp_hits(payload)
                     legacy_hits = [self._map_search2_hit(hit) for hit in opp_hits]
+                    await self._enrich_hits_with_contact_email(client=client, hits=legacy_hits)
                     return self._format_grants(legacy_hits)
                 except httpx.RequestError as err:
                     logger.warning("Grants.gov network error on attempt %s: %s", attempt + 1, err)
@@ -248,6 +250,7 @@ class GrantsGovAPI:
         doc_type = hit.get("docType") or "synopsis"
 
         return {
+            "opportunityId": hit.get("id") or hit.get("opportunityId"),
             "opportunityTitle": title,
             "opportunityNumber": opportunity_number,
             "ownerFullName": agency,
@@ -256,8 +259,64 @@ class GrantsGovAPI:
             "awardFloor": hit.get("awardFloor"),
             "closeDate": hit.get("closeDate"),
             "postDate": hit.get("openDate") or hit.get("postDate"),
+            "recipientEmail": hit.get("agencyContactEmail") or hit.get("contactEmail") or "",
             "categoryOfFundingActivity": hit.get("fundingCategories", "Other"),
         }
+
+    async def _enrich_hits_with_contact_email(self, client: httpx.AsyncClient, hits: list[dict]) -> None:
+        opportunity_ids: list[str] = []
+        seen_ids: set[str] = set()
+        for hit in hits:
+            if hit.get("recipientEmail"):
+                continue
+            raw_id = str(hit.get("opportunityId") or "").strip()
+            if not raw_id or raw_id in seen_ids:
+                continue
+            seen_ids.add(raw_id)
+            opportunity_ids.append(raw_id)
+
+        if not opportunity_ids:
+            return
+
+        fetches = await asyncio.gather(
+            *[self._fetch_contact_email(client=client, opportunity_id=opportunity_id) for opportunity_id in opportunity_ids],
+            return_exceptions=True,
+        )
+
+        email_by_id: dict[str, str] = {}
+        for opportunity_id, result in zip(opportunity_ids, fetches):
+            if isinstance(result, Exception):
+                continue
+            if result:
+                email_by_id[opportunity_id] = result
+
+        for hit in hits:
+            raw_id = str(hit.get("opportunityId") or "").strip()
+            if not raw_id or hit.get("recipientEmail"):
+                continue
+            hit["recipientEmail"] = email_by_id.get(raw_id, "")
+
+    async def _fetch_contact_email(self, client: httpx.AsyncClient, opportunity_id: str) -> str:
+        try:
+            response = await client.post(
+                self.FETCH_OPPORTUNITY_URL,
+                json={"opportunityId": int(opportunity_id)},
+            )
+            if response.status_code >= 400:
+                return ""
+            payload = response.json()
+            data = payload.get("data")
+            if not isinstance(data, dict):
+                return ""
+            synopsis = data.get("synopsis")
+            if not isinstance(synopsis, dict):
+                return ""
+            contact_email = synopsis.get("agencyContactEmail")
+            if isinstance(contact_email, str):
+                return contact_email.strip()
+            return ""
+        except Exception:
+            return ""
 
     async def _generate_synthetic_fallback(self, keyword: str, limit: int) -> list[dict[str, str]]:
         if self.synthetic_enabled and self.client is not None:
@@ -266,7 +325,8 @@ class GrantsGovAPI:
                 f"that perfectly aligns with this startup context: '{keyword}'. "
                 "Return ONLY raw JSON matching this schema: title, opportunity_number "
                 "(e.g., DARPA-123), agency, description, award_ceiling, award_floor, "
-                "close_date, post_date, url, category, source ('synthetic_fallback'). "
+                "close_date, post_date, recipient_email, url, category, source "
+                "('synthetic_fallback'). "
                 "Do not use markdown blocks."
             )
             try:
@@ -328,6 +388,7 @@ class GrantsGovAPI:
                     "award_floor": str(item.get("award_floor") or "$250,000"),
                     "close_date": str(item.get("close_date") or "December 31, 2026"),
                     "post_date": str(item.get("post_date") or "May 01, 2026"),
+                    "recipient_email": str(item.get("recipient_email") or ""),
                     "url": str(item.get("url") or "https://www.grants.gov/search-grants"),
                     "category": str(item.get("category") or "Science and Technology"),
                     "source": "synthetic_fallback",
@@ -355,6 +416,7 @@ class GrantsGovAPI:
             "award_floor": "$300,000",
             "close_date": "December 31, 2026",
             "post_date": "May 01, 2026",
+            "recipient_email": "",
             "url": "https://www.grants.gov/search-grants",
             "category": f"AI Infrastructure ({token})",
             "source": "synthetic_fallback",
@@ -382,12 +444,25 @@ class GrantsGovAPI:
                     "award_floor": self._format_amount(grant.get("awardFloor")),
                     "close_date": self._format_date(grant.get("closeDate")),
                     "post_date": self._format_date(grant.get("postDate")),
-                    "url": f"https://www.grants.gov/search-grants?oppNum={grant.get('opportunityNumber', '')}",
+                    "recipient_email": str(grant.get("recipientEmail") or "").strip(),
+                    "url": self._build_grant_url(grant),
                     "category": grant.get("categoryOfFundingActivity", "Other"),
                     "source": "grants_gov",
                 }
             )
         return sorted(formatted, key=lambda item: self._parse_date(item.get("close_date", "")))
+
+    @staticmethod
+    def _build_grant_url(grant: dict) -> str:
+        opportunity_id = str(grant.get("opportunityId") or "").strip()
+        if opportunity_id:
+            return f"https://www.grants.gov/search-results-detail/{opportunity_id}"
+
+        opportunity_number = str(grant.get("opportunityNumber") or "").strip()
+        if opportunity_number:
+            return f"https://www.grants.gov/search-grants?oppNum={opportunity_number}"
+
+        return "https://www.grants.gov/search-grants"
 
     @staticmethod
     def _format_amount(amount: object) -> str:

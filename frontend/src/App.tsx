@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { Button } from './components/ui/button'
 import { useTreasuryStream } from './hooks/useTreasuryStream'
@@ -102,7 +102,7 @@ function App() {
   const stream = useTreasuryStream()
   const [businessContext, setBusinessContext] = useState('')
   const [hasTriedSubmit, setHasTriedSubmit] = useState(false)
-  const [proposalRecipient, setProposalRecipient] = useState('grants@fervoai.tech')
+  const [proposalRecipient, setProposalRecipient] = useState('')
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle')
 
   const trimmedContext = businessContext.trim()
@@ -169,6 +169,10 @@ function App() {
   const activeTarget = stream.grants[0] ?? null
   const activeDeadlineSignal = activeTarget ? getDeadlineSignal(activeTarget.close_date) : null
 
+  useEffect(() => {
+    setProposalRecipient(activeTarget?.recipient_email?.trim() || '')
+  }, [activeTarget?.opportunity_number, activeTarget?.recipient_email])
+
   const buildProposalExport = useMemo(() => {
     if (!stream.pitch) {
       return null
@@ -218,8 +222,9 @@ function App() {
     setTimeout(() => setCopyStatus('idle'), 1800)
   }
 
+  const mailtoRecipient = proposalRecipient.trim()
   const proposalMailtoHref = buildProposalExport
-    ? `mailto:${encodeURIComponent(proposalRecipient.trim())}?subject=${encodeURIComponent(buildProposalExport.subject)}&body=${encodeURIComponent(buildProposalExport.body)}`
+    ? `mailto:${mailtoRecipient}?subject=${encodeURIComponent(buildProposalExport.subject)}&body=${encodeURIComponent(buildProposalExport.body)}`
     : '#'
 
   const handleCommandOverride = () => {
@@ -427,16 +432,21 @@ function App() {
                   </p>
                   <div className="mb-3 grid grid-cols-1 gap-2">
                     <label htmlFor="proposal-recipient" className="text-[11px] font-mono uppercase tracking-[0.1em] text-foreground/60">
-                      Receiver Email
+                      Recipient Email
                     </label>
                     <input
                       id="proposal-recipient"
                       type="email"
                       value={proposalRecipient}
                       onChange={(event) => setProposalRecipient(event.target.value)}
-                      placeholder="name@agency.gov"
+                      placeholder="recipient@agency.gov"
                       className="bg-background border-border font-mono text-foreground placeholder:text-foreground/35 focus:border-accent focus:ring-danger/30 w-full rounded border px-3 py-2 text-xs outline-none transition focus:ring-2"
                     />
+                    {!proposalRecipient.trim() && (
+                      <p className="text-[11px] text-foreground/55 font-mono">
+                        No contact email available in this listing. You can fill one manually.
+                      </p>
+                    )}
                   </div>
                   <div className="mb-4 flex flex-wrap gap-2">
                     <button
@@ -448,7 +458,17 @@ function App() {
                     </button>
                     <a
                       href={proposalMailtoHref}
-                      className="rounded border border-info/40 px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.11em] text-foreground/85 transition hover:border-info hover:text-foreground"
+                      onClick={(event) => {
+                        if (!mailtoRecipient || !buildProposalExport) {
+                          event.preventDefault()
+                        }
+                      }}
+                      aria-disabled={!mailtoRecipient || !buildProposalExport}
+                      className={`rounded border px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.11em] transition ${
+                        mailtoRecipient && buildProposalExport
+                          ? 'border-info/40 text-foreground/85 hover:border-info hover:text-foreground'
+                          : 'border-border text-foreground/40 cursor-not-allowed'
+                      }`}
                     >
                       Send by Email
                     </a>
