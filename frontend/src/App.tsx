@@ -18,6 +18,15 @@ function truncateText(text: string, maxLength: number): string {
   return `${text.slice(0, maxLength - 3).trimEnd()}...`
 }
 
+function decodeHtmlEntities(text: string): string {
+  if (typeof document === 'undefined') {
+    return text
+  }
+  const textarea = document.createElement('textarea')
+  textarea.innerHTML = text
+  return textarea.value
+}
+
 type DeadlineSignal = {
   label: string
   toneClass: string
@@ -179,7 +188,8 @@ function App() {
       return null
     }
 
-    const subjectBase = activeTarget?.title?.trim() || 'Treasury Agent Grant Proposal'
+    const cleanTitle = decodeHtmlEntities(activeTarget?.title?.trim() || 'Treasury Agent Grant Proposal')
+    const subjectBase = cleanTitle
     const subject = `Treasury Agent Proposal | ${subjectBase}`
 
     const proposalOwner = 'Treasury Agent (fervoAI ecosystem)'
@@ -193,7 +203,7 @@ function App() {
       `Generated at: ${generatedAt}`,
       '',
       'Opportunity Snapshot',
-      `- Title: ${activeTarget?.title || 'Not specified'}`,
+      `- Title: ${cleanTitle || 'Not specified'}`,
       `- Agency: ${activeTarget?.agency || 'Not specified'}`,
       `- Opportunity ID: ${activeTarget?.opportunity_number || 'Not specified'}`,
       `- Posted: ${activeTarget?.post_date || 'Not specified'}`,
