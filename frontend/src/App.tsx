@@ -177,16 +177,28 @@ function App() {
     const subjectBase = activeTarget?.title?.trim() || 'Treasury Agent Grant Proposal'
     const subject = `Treasury Agent Proposal | ${subjectBase}`
 
+    const proposalOwner = 'Treasury Agent (fervoAI ecosystem)'
+    const generatedAt = new Date().toLocaleString()
+    const awardRange = `${activeTarget?.award_floor || 'Not specified'} - ${activeTarget?.award_ceiling || 'Not specified'}`
+
     const bodySections = [
-      'Treasury Agent Proposal',
+      'TREASURY AGENT | EXECUTIVE PROPOSAL BRIEF',
       '',
-      activeTarget ? `Target Opportunity: ${activeTarget.title}` : null,
-      activeTarget ? `Opportunity ID: ${activeTarget.opportunity_number}` : null,
-      activeTarget ? `Agency: ${activeTarget.agency}` : null,
-      activeTarget ? `Close Date: ${activeTarget.close_date}` : null,
-      activeTarget?.url ? `Source: ${activeTarget.url}` : null,
+      `Prepared by: ${proposalOwner}`,
+      `Generated at: ${generatedAt}`,
       '',
-      stream.pitch.pitch_draft,
+      'Opportunity Snapshot',
+      `- Title: ${activeTarget?.title || 'Not specified'}`,
+      `- Agency: ${activeTarget?.agency || 'Not specified'}`,
+      `- Opportunity ID: ${activeTarget?.opportunity_number || 'Not specified'}`,
+      `- Posted: ${activeTarget?.post_date || 'Not specified'}`,
+      `- Closes: ${activeTarget?.close_date || 'Not specified'}`,
+      `- Award Range: ${awardRange}`,
+      `- Category: ${activeTarget?.category || 'Not specified'}`,
+      `- Source: ${activeTarget?.url || 'Not specified'}`,
+      '',
+      'Treasury Agent Proposal Narrative',
+      stream.pitch.pitch_draft.trim(),
     ].filter(Boolean)
 
     const body = bodySections.join('\n')
