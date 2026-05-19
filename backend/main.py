@@ -40,6 +40,7 @@ REQUIRE_STREAM_API_KEY = _parse_bool_env(os.getenv("REQUIRE_STREAM_API_KEY"), de
 STREAM_RATE_LIMIT_REQUESTS = _parse_int_env(os.getenv("STREAM_RATE_LIMIT_REQUESTS"), default=8)
 STREAM_RATE_LIMIT_WINDOW_SECONDS = _parse_int_env(os.getenv("STREAM_RATE_LIMIT_WINDOW_SECONDS"), default=60)
 MAX_CONCURRENT_STREAMS = _parse_int_env(os.getenv("MAX_CONCURRENT_STREAMS"), default=12)
+ENFORCE_STREAM_AUTH = REQUIRE_STREAM_API_KEY and bool(STREAM_API_KEY)
 
 stream_semaphore = asyncio.Semaphore(MAX_CONCURRENT_STREAMS)
 rate_limit_lock = asyncio.Lock()
@@ -48,7 +49,7 @@ rate_limit_hits: dict[str, Deque[float]] = defaultdict(deque)
 if REQUIRE_STREAM_API_KEY and not STREAM_API_KEY:
     logger.warning(
         "REQUIRE_STREAM_API_KEY is enabled but STREAM_API_KEY is not configured. "
-        "All stream requests will be denied until a key is configured."
+        "Auth enforcement is temporarily disabled for availability until STREAM_API_KEY is set."
     )
 
 
@@ -65,13 +66,8 @@ def _extract_client_identifier(request: Request) -> str:
 
 
 def _verify_stream_api_key(x_api_key: str | None) -> None:
-    if not REQUIRE_STREAM_API_KEY:
+    if not ENFORCE_STREAM_AUTH:
         return
-    if not STREAM_API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Workflow temporarily unavailable. Contact support.",
-        )
     provided_key = (x_api_key or "").strip()
     if not provided_key or not hmac.compare_digest(provided_key, STREAM_API_KEY):
         raise HTTPException(

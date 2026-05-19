@@ -115,7 +115,7 @@ export function useTreasuryStream(): TreasuryStreamState {
         return
       }
       setStatus((prev) => (prev === 'completed' ? prev : 'error'))
-      setError((prev) => prev ?? 'Connection lost while streaming workflow.')
+      setError((prev) => prev ?? 'Connection lost while streaming workflow. Check stream auth env: STREAM_API_KEY / VITE_STREAM_API_KEY.')
       closeSource(false)
     }
   }, [closeSource, handleMessage])
