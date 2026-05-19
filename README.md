@@ -5,7 +5,6 @@
 
 The **fervoAI Treasury Agent** is a stateful orchestration loop that autonomously finds, scores, and routes federal grant execution. It bypasses semantic noise, hits live government API surfaces, injects dynamic company state, and deploys multi-agent swarm delegations to close the execution loop.
 
-🎥 **[Watch the 2-Minute Demo Video Here](Link to YouTube/Devpost)**
 
 ---
 
