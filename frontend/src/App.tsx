@@ -152,7 +152,7 @@ function App() {
           </div>
 
           <div className="log-scroll h-[46vh] sm:h-[70vh] overflow-y-auto p-4 font-mono text-sm">
-            {telemetryLines.length === 0 && <p className="text-foreground/55">Awaiting stream handshake...</p>}
+            {telemetryLines.length === 0 && <p className="text-foreground/55">Awaiting live execution signal...</p>}
 
             {telemetryLines.map((line) => {
               const labelClass =
@@ -198,7 +198,7 @@ function App() {
           <div className="space-y-5 p-4">
             <div>
               <label htmlFor="business-context" className="font-heading text-foreground/60 mb-2 block text-sm uppercase tracking-[0.12em]">
-                Core Business Context
+                Strategic Context
               </label>
               <textarea
                 id="business-context"
@@ -259,7 +259,7 @@ function App() {
             </div>
 
             <div className="mt-4 p-4 bg-card/70 border-l-2 border-info rounded-r-lg">
-              <h3 className="font-heading mb-2 text-xl uppercase tracking-[0.08em]">Latest Pitch</h3>
+              <h3 className="font-heading mb-2 text-xl uppercase tracking-[0.08em]">Treasury Agent Proposal</h3>
               {stream.pitch ? (
                 <div className="translate-y-0 opacity-100 transition-all duration-500 ease-out">
                   <p className="font-mono text-foreground/60 mb-2 text-xs uppercase">
@@ -269,7 +269,7 @@ function App() {
                 </div>
               ) : (
                 <div className="translate-y-4 opacity-70 transition-all duration-500 ease-out">
-                  <p className="font-body text-foreground/60 text-sm">No generated output yet.</p>
+                  <p className="font-body text-foreground/60 text-sm">No proposal generated yet.</p>
                 </div>
               )}
               {stream.error && <p className="font-mono text-danger mt-3 text-xs">{stream.error}</p>}
