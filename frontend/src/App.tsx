@@ -1,15 +1,7 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { Button } from './components/ui/button'
 import { useTreasuryStream } from './hooks/useTreasuryStream'
-
-type TelemetryLine = {
-  id: string
-  kind: 'thought' | 'vad' | 'json' | 'target'
-  label: string
-  content: string
-  timestamp: string
-}
 
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) {
@@ -133,69 +125,11 @@ function App() {
   const [hasTriedSubmit, setHasTriedSubmit] = useState(false)
   const [recipientOverrides, setRecipientOverrides] = useState<Record<string, string>>({})
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle')
-  const [expandedNarrativeTargetId, setExpandedNarrativeTargetId] = useState<string | null>(null)
   const [swarmDispatched, setSwarmDispatched] = useState(false)
+  const telemetryTerminalRef = useRef<HTMLDivElement | null>(null)
 
   const trimmedContext = businessContext.trim()
   const canExecute = trimmedContext.length > 0
-
-  const telemetryLines = useMemo(() => {
-    const anchorTimestamp = stream.monologueLog[0]?.timestamp ?? new Date().toISOString()
-
-    const thoughtLines: TelemetryLine[] = [...stream.monologueLog]
-      .reverse()
-      .map((entry, index) => ({
-        id: `thought-${entry.timestamp}-${index}-${entry.text.slice(0, 16)}`,
-        kind: 'thought',
-        label: 'THOUGHT',
-        content: entry.text,
-        timestamp: entry.timestamp,
-      }))
-
-    const vadLines: TelemetryLine[] = stream.vad
-      ? [
-          {
-            id: `vad-${stream.vad.valence.toFixed(3)}-${stream.vad.arousal.toFixed(3)}-${stream.vad.dominance.toFixed(3)}`,
-            kind: 'vad',
-            label: 'VAD',
-            content: `V:${stream.vad.valence.toFixed(2)} A:${stream.vad.arousal.toFixed(2)} D:${stream.vad.dominance.toFixed(2)}`,
-            timestamp: anchorTimestamp,
-          },
-        ]
-      : []
-
-    const payloadLines: TelemetryLine[] = []
-
-    if (stream.grants[0]) {
-      const target = stream.grants[0]
-      payloadLines.push({
-        id: `target-${stream.grants[0].opportunity_number}`,
-        kind: 'target',
-        label: 'TARGET_JSON',
-        content: `Opportunity: ${target.opportunity_number}\nAgency: ${target.agency}\nClose: ${target.close_date}\nTitle: ${target.title}`,
-        timestamp: anchorTimestamp,
-      })
-    }
-
-    if (stream.pitch) {
-      payloadLines.push({
-        id: `pitch-${stream.pitch.model_used}-${stream.pitch.status}`,
-        kind: 'json',
-        label: 'PITCH_JSON',
-        content: JSON.stringify(
-          {
-            model_used: stream.pitch.model_used,
-            status: stream.pitch.status,
-          },
-          null,
-          0,
-        ),
-        timestamp: anchorTimestamp,
-      })
-    }
-
-    return [...thoughtLines, ...vadLines, ...payloadLines]
-  }, [stream.monologueLog, stream.vad, stream.grants, stream.pitch])
 
   const activeTarget = stream.grants[0] ?? null
   const activeDeadlineSignal = activeTarget ? getDeadlineSignal(activeTarget.close_date) : null
@@ -316,6 +250,13 @@ function App() {
     }
   }, [stream.status, stream.pitch])
 
+  useEffect(() => {
+    if (!isHuntMode || !telemetryTerminalRef.current) {
+      return
+    }
+    telemetryTerminalRef.current.scrollTop = telemetryTerminalRef.current.scrollHeight
+  }, [isHuntMode, stream.monologueLog])
+
   return (
     <div className="bg-background text-foreground scanline-overlay min-h-screen">
       <header className="border-border flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
@@ -374,94 +315,30 @@ function App() {
 
         <section className={`order-2 md:order-1 xl:col-span-2 rounded border transition-all duration-500 ${
           isHuntMode
-            ? 'bg-card border-accent/45 shadow-[0_0_24px_hsl(var(--accent)/0.2)]'
-            : 'bg-card border-border'
+            ? 'opacity-100 max-h-[420px] bg-black/90 border-emerald-900/50 shadow-[0_0_24px_rgba(16,185,129,0.12)]'
+            : 'opacity-0 max-h-0 overflow-hidden border-transparent pointer-events-none'
         }`}>
-          <div className="bg-card border-border flex items-center justify-between border-b px-4 py-3">
-            <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Live Execution Narrative</h2>
-            <span className="font-mono text-foreground/60 text-xs uppercase tracking-[0.12em]">{stream.status}</span>
+          <div className="flex items-center justify-between border-b border-emerald-900/50 px-4 py-3">
+            <h2 className="font-heading text-xl uppercase tracking-[0.08em] text-emerald-300">Cognitive Telemetry</h2>
+            <span className="font-mono text-emerald-400/80 text-xs uppercase tracking-[0.12em]">{stream.status}</span>
           </div>
 
-          <div className="log-scroll h-[46vh] sm:h-[70vh] overflow-y-auto p-4 font-mono text-sm">
-            {telemetryLines.length === 0 && <p className="text-foreground/55">Awaiting live execution signal...</p>}
-
-            {telemetryLines.map((line) => {
-              const labelClass =
-                line.kind === 'thought'
-                  ? 'text-foreground/85'
-                  : line.kind === 'vad'
-                    ? 'text-foreground/55'
-                    : line.kind === 'target'
-                      ? 'text-foreground/90'
-                      : 'text-foreground/50'
-              const bodyClass =
-                line.kind === 'thought'
-                  ? 'text-foreground/72'
-                  : line.kind === 'vad'
-                    ? 'text-foreground/55'
-                    : line.kind === 'target'
-                      ? 'text-foreground/72'
-                      : 'text-foreground/50'
-              const rowClass = line.kind === 'target' ? 'flame-left-border pl-3' : ''
-              const isTargetExpanded = line.kind === 'target' && expandedNarrativeTargetId === line.id
-              const isCriticalThought =
-                line.kind === 'thought' &&
-                /(workflow booted|fetching grant opportunities|acquired \d+ candidate grants|selected )/i.test(line.content)
-
-              return (
-                <div
-                  key={line.id}
-                  className={`border-border/50 mb-3 border-b pb-3 last:border-b-0 ${rowClass} ${
-                    isHuntMode && isCriticalThought ? 'rounded border border-accent/30 bg-accent/5 px-2' : ''
-                  }`}
-                >
-                  {line.kind === 'target' ? (
-                    <button
-                      type="button"
-                      onClick={() => setExpandedNarrativeTargetId((prev) => (prev === line.id ? null : line.id))}
-                      className="w-full text-left"
-                    >
-                      <div className={`text-[11px] tracking-[0.11em] uppercase ${labelClass}`}>
-                        [{new Date(line.timestamp).toLocaleTimeString()}] {line.label} {isTargetExpanded ? '[-]' : '[+]'}
-                      </div>
-                      <pre className={`mt-1 whitespace-pre-wrap break-words leading-relaxed ${bodyClass}`}>
-                        {line.content.split('\n')[0]}
-                      </pre>
-                    </button>
-                  ) : (
-                    <>
-                      <div className={`text-[11px] tracking-[0.11em] uppercase ${labelClass}`}>
-                        [{new Date(line.timestamp).toLocaleTimeString()}] {line.label}
-                      </div>
-                      <pre className={`mt-1 whitespace-pre-wrap break-words leading-relaxed ${bodyClass}`}>{line.content}</pre>
-                    </>
-                  )}
-
-                  {isTargetExpanded && activeTarget ? (
-                    <div className="mt-3 rounded-md border border-accent/35 bg-card/80 p-3">
-                      <p className="text-[11px] font-mono uppercase tracking-[0.11em] text-foreground/60">
-                        Opportunity Summary
-                      </p>
-                      <h4 className="mt-1 text-sm font-semibold text-foreground">{decodeHtmlEntities(activeTarget.title)}</h4>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-foreground/70 font-mono">
-                        <p>Agency: {activeTarget.agency}</p>
-                        <p>ID: {activeTarget.opportunity_number}</p>
-                        <p>Close: {activeTarget.close_date}</p>
-                        <p>Award: {activeTarget.award_floor || 'N/A'} - {activeTarget.award_ceiling || 'N/A'}</p>
-                      </div>
-                      <p className="mt-2 text-xs text-foreground/75 leading-relaxed">
-                        {truncateText(decodeHtmlEntities(activeTarget.description?.trim() || 'No description available.'), 240)}
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              )
-            })}
-
-            <div className="text-foreground mt-2 text-sm">
-              <span className="text-foreground/70">_</span>
-              <span className="cursor-blink ml-1 text-accent">_</span>
-            </div>
+          <div
+            ref={telemetryTerminalRef}
+            className="h-64 overflow-y-auto bg-black border border-emerald-900/50 p-4 font-mono text-xs"
+          >
+            {stream.monologueLog.length === 0 ? (
+              <p className="text-emerald-500/70">&gt; [ SYSTEM EVENT ] Awaiting workflow handshake...</p>
+            ) : (
+              [...stream.monologueLog].reverse().map((entry, index) => (
+                <p key={`${entry.timestamp}-${index}-${entry.text.slice(0, 16)}`} className="mb-1 text-emerald-400/90">
+                  &gt; [{new Date(entry.timestamp).toLocaleTimeString()}] [ SYSTEM EVENT ] {entry.text}
+                </p>
+              ))
+            )}
+            <p className="text-emerald-500/70">
+              &gt; [ STREAM ] <span className="cursor-blink">_</span>
+            </p>
           </div>
         </section>
 
@@ -472,7 +349,7 @@ function App() {
               : isLockMode
                 ? 'bg-card border-success/35 shadow-[0_0_20px_hsl(var(--success)/0.18)] opacity-100'
                 : 'bg-card border-border'
-          }`}
+          } ${isHuntMode ? 'xl:col-span-1' : 'xl:col-span-3'}`}
         >
           <div className="bg-card border-border border-b px-4 py-3">
             <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Treasury Agent Console</h2>
