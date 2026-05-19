@@ -319,10 +319,10 @@ function App() {
         }`}>
           <p className="text-[11px] font-mono uppercase tracking-[0.14em] text-foreground/70">
             {isHuntMode
-              ? 'HUNTING LIVE FEDERAL DATA'
+              ? 'STATEFUL ORCHESTRATION ONLINE | HUNTING LIVE FEDERAL DATA'
               : isLockMode
-                ? 'TARGET LOCKED | EXECUTION PACKAGE READY'
-                : 'STANDBY | AWAITING STRATEGIC INPUT'}
+                ? 'STATEFUL ORCHESTRATION CONFIRMED | TARGET LOCKED | EXECUTION PACKAGE READY'
+                : 'STATEFUL ORCHESTRATION STANDBY | AWAITING STRATEGIC INPUT'}
           </p>
         </section>
 
@@ -455,7 +455,7 @@ function App() {
             {activeTarget ? (
               <div className="rounded-md border border-success/30 bg-success/10 px-3 py-2">
                 <p className="text-[11px] font-mono uppercase tracking-[0.11em] text-foreground/65">
-                  Top Match 94% | {activeDeadlineSignal?.label || 'Schedule unavailable'} | {activeTarget.agency}
+                  Stateful Confidence 94% | {activeDeadlineSignal?.label || 'Schedule unavailable'} | {activeTarget.agency}
                 </p>
               </div>
             ) : null}
@@ -591,7 +591,7 @@ function App() {
             </div>
 
             <div className="mt-4 p-4 bg-card/70 border-l-2 border-info rounded-r-lg">
-              <h3 className="font-heading mb-2 text-xl uppercase tracking-[0.08em]">Treasury Agent Proposal</h3>
+              <h3 className="font-heading mb-2 text-xl uppercase tracking-[0.08em]">Treasury Agent Proposal Package</h3>
               {stream.pitch && isLockMode ? (
                 <div className="translate-y-0 opacity-100 transition-all duration-500 ease-out">
                   <p className="font-mono text-foreground/60 mb-2 text-xs uppercase">
