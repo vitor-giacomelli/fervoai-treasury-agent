@@ -102,6 +102,8 @@ function App() {
   const stream = useTreasuryStream()
   const [businessContext, setBusinessContext] = useState('')
   const [hasTriedSubmit, setHasTriedSubmit] = useState(false)
+  const [proposalRecipient, setProposalRecipient] = useState('grants@fervoai.tech')
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle')
 
   const trimmedContext = businessContext.trim()
   const canExecute = trimmedContext.length > 0
@@ -166,6 +168,47 @@ function App() {
 
   const activeTarget = stream.grants[0] ?? null
   const activeDeadlineSignal = activeTarget ? getDeadlineSignal(activeTarget.close_date) : null
+
+  const buildProposalExport = useMemo(() => {
+    if (!stream.pitch) {
+      return null
+    }
+
+    const subjectBase = activeTarget?.title?.trim() || 'Treasury Agent Grant Proposal'
+    const subject = `Treasury Agent Proposal | ${subjectBase}`
+
+    const bodySections = [
+      'Treasury Agent Proposal',
+      '',
+      activeTarget ? `Target Opportunity: ${activeTarget.title}` : null,
+      activeTarget ? `Opportunity ID: ${activeTarget.opportunity_number}` : null,
+      activeTarget ? `Agency: ${activeTarget.agency}` : null,
+      activeTarget ? `Close Date: ${activeTarget.close_date}` : null,
+      activeTarget?.url ? `Source: ${activeTarget.url}` : null,
+      '',
+      stream.pitch.pitch_draft,
+    ].filter(Boolean)
+
+    const body = bodySections.join('\n')
+    return { subject, body }
+  }, [stream.pitch, activeTarget])
+
+  const handleCopyProposal = async () => {
+    if (!buildProposalExport) {
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(buildProposalExport.body)
+      setCopyStatus('copied')
+    } catch {
+      setCopyStatus('error')
+    }
+    setTimeout(() => setCopyStatus('idle'), 1800)
+  }
+
+  const proposalMailtoHref = buildProposalExport
+    ? `mailto:${encodeURIComponent(proposalRecipient.trim())}?subject=${encodeURIComponent(buildProposalExport.subject)}&body=${encodeURIComponent(buildProposalExport.body)}`
+    : '#'
 
   const handleCommandOverride = () => {
     setHasTriedSubmit(true)
@@ -370,6 +413,34 @@ function App() {
                   <p className="font-mono text-foreground/60 mb-2 text-xs uppercase">
                     {stream.pitch.model_used} | {stream.pitch.status}
                   </p>
+                  <div className="mb-3 grid grid-cols-1 gap-2">
+                    <label htmlFor="proposal-recipient" className="text-[11px] font-mono uppercase tracking-[0.1em] text-foreground/60">
+                      Receiver Email
+                    </label>
+                    <input
+                      id="proposal-recipient"
+                      type="email"
+                      value={proposalRecipient}
+                      onChange={(event) => setProposalRecipient(event.target.value)}
+                      placeholder="name@agency.gov"
+                      className="bg-background border-border font-mono text-foreground placeholder:text-foreground/35 focus:border-accent focus:ring-danger/30 w-full rounded border px-3 py-2 text-xs outline-none transition focus:ring-2"
+                    />
+                  </div>
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyProposal}
+                      className="rounded border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.11em] text-foreground/85 transition hover:border-accent hover:text-foreground"
+                    >
+                      {copyStatus === 'copied' ? 'Copied' : copyStatus === 'error' ? 'Copy Failed' : 'Copy Proposal'}
+                    </button>
+                    <a
+                      href={proposalMailtoHref}
+                      className="rounded border border-info/40 px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.11em] text-foreground/85 transition hover:border-info hover:text-foreground"
+                    >
+                      Send by Email
+                    </a>
+                  </div>
                   <PitchText text={stream.pitch.pitch_draft} />
                 </div>
               ) : (
