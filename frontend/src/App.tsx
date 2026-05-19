@@ -293,10 +293,14 @@ function App() {
 
   return (
     <div className="bg-background text-foreground scanline-overlay min-h-screen">
-      <header className="border-border border-b px-4 py-6 sm:px-6">
-        <h1 className="mx-auto max-w-5xl text-center font-heading text-2xl font-bold tracking-[0.03em] text-foreground sm:text-3xl">
-          Treasury Agent autonomously finds, scores, and routes federal grant execution.
-        </h1>
+      <header className="w-full border-b border-gray-800 bg-black px-6 py-2 flex items-center justify-between gap-4">
+        <div className="inline-flex items-center gap-2 text-xs font-mono tracking-widest text-emerald-400 uppercase whitespace-nowrap">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          fervoAI.* TREASURY ORCHESTRATOR
+        </div>
+        <p className="text-xs text-gray-500 font-mono tracking-wider uppercase text-right truncate">
+          SYS_MISSION: AUTONOMOUSLY FIND, SCORE, AND ROUTE FEDERAL GRANT EXECUTION
+        </p>
       </header>
 
       <main className="grid grid-cols-1 gap-4 p-4 sm:gap-6 sm:p-6 xl:grid-cols-3">
