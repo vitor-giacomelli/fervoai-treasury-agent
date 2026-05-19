@@ -12,7 +12,7 @@ export function Button({ className, asChild = false, ...props }: ButtonProps) {
   return (
     <Comp
       className={cn(
-        'inline-flex items-center justify-center rounded border border-cyan-400/60 bg-cyan-400/10 px-3 py-2 font-mono text-xs uppercase tracking-widest text-cyan-200 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex items-center justify-center rounded border border-border bg-card px-3 py-2 font-mono text-xs uppercase tracking-widest text-foreground transition hover:bg-card/80 disabled:cursor-not-allowed disabled:opacity-50',
         className,
       )}
       {...props}

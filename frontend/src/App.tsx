@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
 
+import { Button } from './components/ui/button'
 import { useTreasuryStream } from './hooks/useTreasuryStream'
 
 type TelemetryLine = {
@@ -10,7 +11,7 @@ type TelemetryLine = {
   timestamp: string
 }
 
-function renderInlineMarkdown(text: string): ReactNode[] {
+function renderPitchLine(text: string): ReactNode[] {
   const segments = text.split(/(\*\*[^*]+\*\*)/g)
   return segments.map((segment, index) => {
     const isBold = segment.startsWith('**') && segment.endsWith('**') && segment.length > 4
@@ -18,14 +19,14 @@ function renderInlineMarkdown(text: string): ReactNode[] {
       return <Fragment key={`${segment}-${index}`}>{segment}</Fragment>
     }
     return (
-      <strong key={`${segment}-${index}`} className="font-semibold text-white">
+      <strong key={`${segment}-${index}`} className="font-semibold text-foreground">
         {segment.slice(2, -2)}
       </strong>
     )
   })
 }
 
-function PitchMarkdown({ text }: { text: string }) {
+function PitchText({ text }: { text: string }) {
   const paragraphs = text
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
@@ -33,19 +34,16 @@ function PitchMarkdown({ text }: { text: string }) {
 
   return (
     <div className="space-y-3">
-      {paragraphs.map((paragraph, paragraphIndex) => {
-        const lines = paragraph.split('\n')
-        return (
-          <p key={`${paragraph}-${paragraphIndex}`} className="leading-relaxed text-sm text-blue-50/95">
-            {lines.map((line, lineIndex) => (
-              <Fragment key={`${line}-${lineIndex}`}>
-                {renderInlineMarkdown(line)}
-                {lineIndex < lines.length - 1 ? <br /> : null}
-              </Fragment>
-            ))}
-          </p>
-        )
-      })}
+      {paragraphs.map((paragraph, paragraphIndex) => (
+        <p key={`${paragraph}-${paragraphIndex}`} className="text-sm text-foreground/80 leading-relaxed font-sans">
+          {paragraph.split('\n').map((line, lineIndex, lines) => (
+            <Fragment key={`${line}-${lineIndex}`}>
+              {renderPitchLine(line)}
+              {lineIndex < lines.length - 1 ? <br /> : null}
+            </Fragment>
+          ))}
+        </p>
+      ))}
     </div>
   )
 }
@@ -134,8 +132,8 @@ function App() {
         </div>
         <div className="flex items-center gap-6">
           <div className="font-mono text-foreground/70 text-xs uppercase tracking-[0.12em]">NODE: FERVOAI.TECH</div>
-          <div className="font-mono text-xs uppercase tracking-[0.1em] text-emerald-300 flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="font-mono text-xs uppercase tracking-[0.1em] text-success flex items-center gap-2">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-success animate-pulse" />
             Link Established
           </div>
         </div>
@@ -182,7 +180,7 @@ function App() {
 
             <div className="text-foreground mt-2 text-sm">
               <span className="text-foreground/70">_</span>
-              <span className="cursor-blink ml-1 text-[#FFD82A]">_</span>
+              <span className="cursor-blink ml-1 text-accent">_</span>
             </div>
           </div>
         </section>
@@ -194,10 +192,11 @@ function App() {
 
           <div className="space-y-5 p-4">
             <div>
-              <label className="font-heading text-foreground/60 mb-2 block text-sm uppercase tracking-[0.12em]">
+              <label htmlFor="business-context" className="font-heading text-foreground/60 mb-2 block text-sm uppercase tracking-[0.12em]">
                 Core Business Context
               </label>
               <textarea
+                id="business-context"
                 value={businessContext}
                 onChange={(event) => {
                   setBusinessContext(event.target.value)
@@ -207,82 +206,68 @@ function App() {
                 }}
                 placeholder="B2B AI infrastructure for autonomous cloud optimization..."
                 rows={5}
-                className="bg-background border-border font-mono text-foreground placeholder:text-foreground/35 focus:border-[#FFD82A] focus:ring-[#FF2D2D]/30 w-full resize-none rounded border px-3 py-2 text-sm outline-none transition focus:ring-2"
+                className="bg-background border-border font-mono text-foreground placeholder:text-foreground/35 focus:border-accent focus:ring-danger/30 w-full resize-none rounded border px-3 py-2 text-sm outline-none transition focus:ring-2"
               />
               {hasTriedSubmit && !canExecute && (
-                <p className="font-mono text-[#FF2D2D] mt-2 text-xs">Context required to execute workflow.</p>
+                <p className="font-mono text-danger mt-2 text-xs">Context required to execute workflow.</p>
               )}
             </div>
 
-            <button
+            <Button
               type="button"
               onClick={handleCommandOverride}
               disabled={!canExecute}
-              className="flame-gradient font-heading text-background disabled:text-background/50 disabled:cursor-not-allowed disabled:opacity-55 w-full rounded px-4 py-3 text-2xl uppercase tracking-[0.1em] shadow-[0_0_24px_rgba(255,216,42,0.25)]"
+              className="flame-gradient font-heading text-background hover:text-background disabled:text-background/50 disabled:cursor-not-allowed disabled:opacity-55 w-full rounded px-4 py-3 text-2xl uppercase tracking-[0.1em] shadow-[0_0_24px_hsl(var(--accent)/0.25)] border-transparent"
             >
               Command Override
-            </button>
+            </Button>
 
-            <div className="rounded-xl border border-gray-800 bg-black/40 backdrop-blur-md">
-              <div className="p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-heading text-xl uppercase tracking-[0.08em] text-white">Active Target</h3>
-                  <span className="rounded-full border border-emerald-400/50 bg-emerald-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.35)]">
-                    TARGET ACQUIRED
-                  </span>
+            <div className="bg-card/80 border border-success/30 rounded-lg p-4 shadow-[0_0_15px_hsl(var(--success)/0.12)]">
+              <div>
+                <div className="text-success text-xs font-mono font-bold tracking-widest mb-2 border-b border-success/30 pb-1">
+                  TARGET ACQUIRED
                 </div>
                 {activeTarget ? (
                   <div className="mt-4 translate-y-0 space-y-4 opacity-100 transition-all duration-500 ease-out">
-                    <h3 className="text-xl font-bold text-white">{activeTarget.title}</h3>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <h3 className="text-lg font-bold text-foreground mb-1">{activeTarget.title}</h3>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-foreground/70 font-mono mt-3">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500">Agency</p>
-                        <p className="mt-1 text-sm text-gray-300">{activeTarget.agency}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500">Opportunity</p>
-                        <p className="mt-1 text-sm text-gray-300">{activeTarget.opportunity_number}</p>
+                        <p className="uppercase tracking-[0.12em] text-muted">Agency</p>
+                        <p className="mt-1 text-foreground/85">{activeTarget.agency}</p>
                       </div>
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500">Close Date</p>
-                        <p className="mt-1 text-sm text-gray-300">{activeTarget.close_date}</p>
+                        <p className="uppercase tracking-[0.12em] text-muted">ID</p>
+                        <p className="mt-1 text-foreground/85">{activeTarget.opportunity_number}</p>
                       </div>
-                    </div>
-                    <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Match Confidence</span>
-                        <span className="text-sm font-semibold text-emerald-300">94%</span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-800">
-                        <div className="h-full w-[94%] rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 shadow-[0_0_14px_rgba(45,212,191,0.45)] transition-all duration-700 ease-out" />
+                      <div className="col-span-2">
+                        <p className="uppercase tracking-[0.12em] text-muted">Date</p>
+                        <p className="mt-1 text-foreground/85">{activeTarget.close_date}</p>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="mt-4 translate-y-4 opacity-70 transition-all duration-500 ease-out">
-                    <p className="text-sm text-gray-400">No opportunity selected yet.</p>
+                    <p className="text-sm text-muted">No opportunity selected yet.</p>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="rounded-xl border border-gray-800 bg-black/40 p-4 backdrop-blur-md">
+            <div className="mt-4 p-4 bg-card/70 border-l-2 border-info rounded-r-lg">
               <h3 className="font-heading mb-2 text-xl uppercase tracking-[0.08em]">Latest Pitch</h3>
               {stream.pitch ? (
                 <div className="translate-y-0 opacity-100 transition-all duration-500 ease-out">
                   <p className="font-mono text-foreground/60 mb-2 text-xs uppercase">
                     {stream.pitch.model_used} | {stream.pitch.status}
                   </p>
-                  <div className="border-l-4 border-blue-500 bg-blue-900/10 px-4 py-3">
-                    <PitchMarkdown text={stream.pitch.pitch_draft} />
-                  </div>
+                  <PitchText text={stream.pitch.pitch_draft} />
                 </div>
               ) : (
                 <div className="translate-y-4 opacity-70 transition-all duration-500 ease-out">
                   <p className="font-body text-foreground/60 text-sm">No generated output yet.</p>
                 </div>
               )}
-              {stream.error && <p className="font-mono text-[#FF2D2D] mt-3 text-xs">{stream.error}</p>}
+              {stream.error && <p className="font-mono text-danger mt-3 text-xs">{stream.error}</p>}
             </div>
           </div>
         </aside>

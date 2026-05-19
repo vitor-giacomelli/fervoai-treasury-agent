@@ -10,6 +10,10 @@ export default {
         card: 'hsl(var(--card))',
         border: 'hsl(var(--border))',
         accent: 'hsl(var(--accent))',
+        success: 'hsl(var(--success))',
+        info: 'hsl(var(--info))',
+        danger: 'hsl(var(--danger))',
+        muted: 'hsl(var(--muted))',
       },
       fontFamily: {
         heading: ['"Bebas Neue"', 'sans-serif'],
@@ -20,4 +24,3 @@ export default {
   },
   plugins: [],
 } satisfies Config
-

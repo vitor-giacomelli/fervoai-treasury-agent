@@ -8,6 +8,10 @@
   --card: 0 0% 4%;
   --border: 0 0% 12%;
   --accent: 50 100% 58%;
+  --success: 158 64% 52%;
+  --info: 217 91% 60%;
+  --danger: 0 84% 60%;
+  --muted: 0 0% 65%;
   --flame-red: #ff2d2d;
   --chaos-yellow: #ffd82a;
 }

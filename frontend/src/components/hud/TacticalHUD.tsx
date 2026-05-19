@@ -1,5 +1,3 @@
-import { motion } from 'framer-motion'
-
 import type { TreasuryStreamState } from '../../types/stream'
 import { Button } from '../ui/button'
 import { MonologueTerminal } from './MonologueTerminal'
@@ -46,16 +44,14 @@ export function TacticalHUD({ stream }: TacticalHUDProps) {
             <div className="space-y-2 p-3">
               {stream.grants.length === 0 && <p className="font-mono text-xs text-cyan-100/50">Waiting for filtered grants...</p>}
               {stream.grants.map((grant) => (
-                <motion.div
+                <div
                   key={grant.opportunity_number}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="rounded border border-cyan-500/20 bg-cyan-400/5 p-3"
+                  className="rounded border border-cyan-500/20 bg-cyan-400/5 p-3 transition-all duration-300 ease-out"
                 >
                   <p className="font-mono text-xs uppercase tracking-wider text-amber-300">{grant.opportunity_number}</p>
                   <p className="mt-1 font-mono text-sm text-cyan-100">{grant.title}</p>
                   <p className="mt-1 font-mono text-xs text-cyan-100/70">{grant.agency} | {grant.close_date}</p>
-                </motion.div>
+                </div>
               ))}
             </div>
           </article>
