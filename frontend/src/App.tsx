@@ -597,6 +597,52 @@ function App() {
                   <p className="font-mono text-foreground/60 mb-2 text-xs uppercase">
                     {stream.pitch.model_used} | {stream.pitch.status}
                   </p>
+                  <div className="mb-4 rounded-md border border-info/35 bg-info/10 p-3">
+                    <h4 className="text-[11px] font-mono uppercase tracking-[0.12em] text-foreground/75">
+                      FEASIBILITY MATRIX
+                    </h4>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] font-mono text-foreground/80">
+                      <p>Technical Fit: {stream.pitch.feasibility_score.technical_fit}%</p>
+                      <p>Compliance Readiness: {stream.pitch.feasibility_score.compliance_readiness}%</p>
+                      <p>Capital Efficiency: {stream.pitch.feasibility_score.capital_efficiency}%</p>
+                      <p>Execution Confidence: {stream.pitch.feasibility_score.execution_confidence}%</p>
+                    </div>
+                    <div className="mt-3">
+                      <div className="mb-1 flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.11em]">
+                        <span className="text-foreground/65">Composite Score</span>
+                        <span className="text-success font-semibold">{stream.pitch.feasibility_score.composite_score}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded bg-card/85 border border-success/20">
+                        <div
+                          className="h-full bg-gradient-to-r from-success/70 to-success"
+                          style={{ width: `${Math.max(0, Math.min(100, stream.pitch.feasibility_score.composite_score))}%` }}
+                        />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs leading-relaxed text-foreground/75">
+                      {stream.pitch.feasibility_score.rationale}
+                    </p>
+                  </div>
+
+                  <div className="mb-4 rounded-md border border-accent/35 bg-accent/10 p-3">
+                    <h4 className="text-[11px] font-mono uppercase tracking-[0.12em] text-foreground/75">
+                      SWARM DELEGATION PROTOCOL
+                    </h4>
+                    <div className="mt-2 space-y-2">
+                      {stream.pitch.swarm_tasks.map((task, index) => (
+                        <div key={`${task.assignee}-${index}-${task.objective.slice(0, 18)}`} className="rounded border border-border/80 bg-card/85 p-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono uppercase tracking-[0.1em]">
+                            <span className="text-foreground/85">{task.assignee}</span>
+                            <span className="text-foreground/60">{task.priority} | {task.status}</span>
+                          </div>
+                          <p className="mt-1 text-xs text-foreground/80 leading-relaxed">{task.objective}</p>
+                          <p className="mt-1 text-[11px] text-foreground/65">Domain: {task.domain_alignment}</p>
+                          <p className="mt-1 text-[11px] text-foreground/65">Output: {task.expected_output}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="mb-3 grid grid-cols-1 gap-2">
                     <label htmlFor="proposal-recipient" className="text-[11px] font-mono uppercase tracking-[0.1em] text-foreground/60">
                       Recipient Email
