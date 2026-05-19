@@ -64,7 +64,7 @@ class PitchGenerator:
         )
 
         try:
-            response = self.client.models.generate_content(
+            response = await self.client.aio.models.generate_content(
                 model=self.primary_model,
                 contents=prompt,
             )
@@ -98,7 +98,7 @@ class PitchGenerator:
         )
 
         try:
-            response = self.client.models.generate_content(
+            response = await self.client.aio.models.generate_content(
                 model=self.primary_model,
                 contents=prompt,
             )
@@ -109,7 +109,7 @@ class PitchGenerator:
             )
         except Exception:
             try:
-                response = self.client.models.generate_content(
+                response = await self.client.aio.models.generate_content(
                     model=self.fallback_model,
                     contents=prompt,
                 )

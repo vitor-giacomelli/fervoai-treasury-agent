@@ -103,7 +103,7 @@ class GrantsGovAPI:
             "markdown code blocks."
         )
         try:
-            response = self.client.models.generate_content(
+            response = await self.client.aio.models.generate_content(
                 model=self.synthetic_model,
                 contents=prompt,
             )
@@ -270,7 +270,7 @@ class GrantsGovAPI:
                 "Do not use markdown blocks."
             )
             try:
-                response = self.client.models.generate_content(
+                response = await self.client.aio.models.generate_content(
                     model=self.synthetic_model,
                     contents=prompt,
                 )

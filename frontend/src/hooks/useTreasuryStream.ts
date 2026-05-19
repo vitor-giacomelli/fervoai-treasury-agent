@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { GrantCandidate, MonologueEntry, PitchPayload, TreasuryStreamState, VadSnapshot, WorkflowStatus } from '../types/stream'
 
@@ -11,7 +11,7 @@ interface StreamEventEnvelope {
 const DEV_DEFAULT_API_BASE_URL =
   typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-  window.location.port === '5173'
+  ['5173', '4173'].includes(window.location.port)
     ? 'http://localhost:8000'
     : ''
 
@@ -35,6 +35,12 @@ export function useTreasuryStream(): TreasuryStreamState {
       sourceRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    return () => {
+      closeSource()
+    }
+  }, [closeSource])
 
   const handleMessage = useCallback((event: MessageEvent<string>) => {
     try {

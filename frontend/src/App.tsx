@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState, type ReactNode } from 'react'
 
 import { useTreasuryStream } from './hooks/useTreasuryStream'
 
@@ -8,6 +8,46 @@ type TelemetryLine = {
   label: string
   content: string
   timestamp: string
+}
+
+function renderInlineMarkdown(text: string): ReactNode[] {
+  const segments = text.split(/(\*\*[^*]+\*\*)/g)
+  return segments.map((segment, index) => {
+    const isBold = segment.startsWith('**') && segment.endsWith('**') && segment.length > 4
+    if (!isBold) {
+      return <Fragment key={`${segment}-${index}`}>{segment}</Fragment>
+    }
+    return (
+      <strong key={`${segment}-${index}`} className="font-semibold text-white">
+        {segment.slice(2, -2)}
+      </strong>
+    )
+  })
+}
+
+function PitchMarkdown({ text }: { text: string }) {
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+
+  return (
+    <div className="space-y-3">
+      {paragraphs.map((paragraph, paragraphIndex) => {
+        const lines = paragraph.split('\n')
+        return (
+          <p key={`${paragraph}-${paragraphIndex}`} className="leading-relaxed text-sm text-blue-50/95">
+            {lines.map((line, lineIndex) => (
+              <Fragment key={`${line}-${lineIndex}`}>
+                {renderInlineMarkdown(line)}
+                {lineIndex < lines.length - 1 ? <br /> : null}
+              </Fragment>
+            ))}
+          </p>
+        )
+      })}
+    </div>
+  )
 }
 
 function App() {
@@ -46,11 +86,12 @@ function App() {
     const payloadLines: TelemetryLine[] = []
 
     if (stream.grants[0]) {
+      const target = stream.grants[0]
       payloadLines.push({
         id: `target-${stream.grants[0].opportunity_number}`,
         kind: 'target',
         label: 'TARGET_JSON',
-        content: JSON.stringify(stream.grants[0], null, 0),
+        content: `Opportunity: ${target.opportunity_number}\nAgency: ${target.agency}\nClose: ${target.close_date}\nTitle: ${target.title}`,
         timestamp: anchorTimestamp,
       })
     }
@@ -182,34 +223,64 @@ function App() {
               Command Override
             </button>
 
-            <div className="bg-card border-border rounded border">
-              <div className="flame-gradient h-1 w-full" />
+            <div className="rounded-xl border border-gray-800 bg-black/40 backdrop-blur-md">
               <div className="p-4">
-                <h3 className="font-heading mb-2 text-xl uppercase tracking-[0.08em]">Active Target</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-heading text-xl uppercase tracking-[0.08em] text-white">Active Target</h3>
+                  <span className="rounded-full border border-emerald-400/50 bg-emerald-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.35)]">
+                    TARGET ACQUIRED
+                  </span>
+                </div>
                 {activeTarget ? (
-                  <div className="space-y-2">
-                    <p className="font-mono text-foreground/80 text-xs uppercase tracking-[0.08em]">{activeTarget.opportunity_number}</p>
-                    <p className="font-body text-foreground text-sm leading-relaxed">{activeTarget.title}</p>
-                    <p className="font-body text-foreground/70 text-xs">{activeTarget.agency}</p>
-                    <p className="font-mono text-foreground/55 text-xs">Close: {activeTarget.close_date}</p>
+                  <div className="mt-4 translate-y-0 space-y-4 opacity-100 transition-all duration-500 ease-out">
+                    <h3 className="text-xl font-bold text-white">{activeTarget.title}</h3>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500">Agency</p>
+                        <p className="mt-1 text-sm text-gray-300">{activeTarget.agency}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500">Opportunity</p>
+                        <p className="mt-1 text-sm text-gray-300">{activeTarget.opportunity_number}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500">Close Date</p>
+                        <p className="mt-1 text-sm text-gray-300">{activeTarget.close_date}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Match Confidence</span>
+                        <span className="text-sm font-semibold text-emerald-300">94%</span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-800">
+                        <div className="h-full w-[94%] rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 shadow-[0_0_14px_rgba(45,212,191,0.45)] transition-all duration-700 ease-out" />
+                      </div>
+                    </div>
                   </div>
                 ) : (
-                  <p className="font-body text-foreground/60 text-sm">No opportunity selected yet.</p>
+                  <div className="mt-4 translate-y-4 opacity-70 transition-all duration-500 ease-out">
+                    <p className="text-sm text-gray-400">No opportunity selected yet.</p>
+                  </div>
                 )}
               </div>
             </div>
 
-            <div className="bg-card border-border rounded border p-4">
+            <div className="rounded-xl border border-gray-800 bg-black/40 p-4 backdrop-blur-md">
               <h3 className="font-heading mb-2 text-xl uppercase tracking-[0.08em]">Latest Pitch</h3>
               {stream.pitch ? (
-                <>
+                <div className="translate-y-0 opacity-100 transition-all duration-500 ease-out">
                   <p className="font-mono text-foreground/60 mb-2 text-xs uppercase">
                     {stream.pitch.model_used} | {stream.pitch.status}
                   </p>
-                  <p className="font-body text-foreground/78 text-sm leading-relaxed">{stream.pitch.pitch_draft}</p>
-                </>
+                  <div className="border-l-4 border-blue-500 bg-blue-900/10 px-4 py-3">
+                    <PitchMarkdown text={stream.pitch.pitch_draft} />
+                  </div>
+                </div>
               ) : (
-                <p className="font-body text-foreground/60 text-sm">No generated output yet.</p>
+                <div className="translate-y-4 opacity-70 transition-all duration-500 ease-out">
+                  <p className="font-body text-foreground/60 text-sm">No generated output yet.</p>
+                </div>
               )}
               {stream.error && <p className="font-mono text-[#FF2D2D] mt-3 text-xs">{stream.error}</p>}
             </div>

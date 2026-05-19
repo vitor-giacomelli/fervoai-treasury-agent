@@ -97,7 +97,7 @@ VITE_API_BASE_URL=http://localhost:8000
 ```
 
 Default behavior when `VITE_API_BASE_URL` is unset:
-- Vite dev server on `localhost:5173`: uses `http://localhost:8000`
+- Vite dev server on `localhost:4173` (or `localhost:5173` if reconfigured): uses `http://localhost:8000`
 - Containerized/Nginx runtime: uses same-origin `/api` proxy
 
 ## Local Development
@@ -120,7 +120,7 @@ npm run dev
 ```
 
 Open:
-- `http://localhost:5173`
+- `http://localhost:4173`
 
 ## Docker Compose
 
@@ -130,7 +130,7 @@ docker compose up --build
 
 Services:
 - Backend: `http://localhost:8000`
-- Frontend: `http://localhost:5173`
+- Frontend: `http://localhost`
 
 ### Dev vs Stage `DEMO_MODE`
 
