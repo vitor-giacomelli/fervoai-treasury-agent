@@ -1,31 +1,23 @@
-# fervoAI.treasury
+# fervoAI Treasury Agent
 
-Autonomous enterprise agent for grant discovery and pitch generation, with real-time introspection streamed from Python to a cyber-brutalist React HUD.
+Live grant-intelligence application that discovers federal opportunities, ranks and filters them, generates a pitch package, and streams internal orchestration telemetry to a terminal-style UI.
 
-## Why This Project Exists
+This repository contains the complete product slice used for hackathon demo and near-term production hardening.
 
-Most AI demos stop at "input -> output". This project is built to show the full autonomous loop:
+## What The App Does
 
-1. Discover opportunities.
-2. Evaluate relevance.
-3. Generate actionable proposal output.
-4. Stream internal reasoning and confidence signals live to the UI.
+1. Accepts a strategic business query.
+2. Expands query vectors (Gemini-assisted when enabled).
+3. Pulls active opportunities from Grants.gov (`forecasted|posted` scope).
+4. Filters candidate grants with Gemini relevance ranking.
+5. Selects a target and generates a structured pitch payload.
+6. Streams thought telemetry and machine state through SSE.
+7. Presents a phased HUD:
+   - Hunt: cognitive telemetry
+   - Lock: bento proposal dashboard
+   - Deploy: swarm execution simulation + audit log
 
-The goal is not only utility, but also transparency of agent behavior under time pressure.
-
-## Scope Guardrails
-
-In scope:
-- Treasury-agent monorepo only (`backend` + `frontend` in this repo).
-- FastAPI + SSE + React HUD flow.
-- Database-free telemetry pipeline for speed and reliability.
-
-Out of scope (for now):
-- Expanding or modifying source repos beyond cannibalization needs.
-- Complex infra/orchestration beyond what is needed for the demo.
-- Feature creep that does not improve reliability, clarity, or demo impact.
-
-## Monorepo Layout
+## Repository Structure
 
 ```text
 fervoai-treasury-agent/
@@ -35,81 +27,40 @@ fervoai-treasury-agent/
     grants_gov_api.py
     pitch_generator.py
     pydantic_models.py
+    fervo_state.json
     requirements.txt
   frontend/
     src/
-      components/hud/
+      App.tsx
       hooks/useTreasuryStream.ts
-  docker-compose.yml
-  MIT-LICENSE.txt
-  THIRD_PARTY_NOTICES.md
+      types/stream.ts
+  scripts/
+    rebuild-backend-no-cache.ps1
   docs/
+    API_REFERENCE.md
+    ARCHITECTURE.md
+    CONFIGURATION.md
+    OPERATIONS_RUNBOOK.md
+    DEEP_DIVE_HACKATHON_STRATEGY_INTEGRATION.md
+  docker-compose.yml
+  .env.example
 ```
 
-## Runtime Architecture
+## Quick Start
 
-### Backend
-- `main.py`: FastAPI app and `GET /api/stream_workflow`.
-- `orchestrator.py`: autonomous async generator that emits stream events.
-- `grants_gov_api.py`: Grants.gov fetch adapter + retry + mock fallback.
-- `pitch_generator.py`: Gemini filtering + pitch generation (template fallback).
+### Option A: Docker Compose
 
-### Frontend
-- `useTreasuryStream.ts`: native `EventSource` client.
-- `TacticalHUD.tsx`: tactical dashboard shell.
-- `MonologueTerminal.tsx`: live internal monologue feed.
-
-### Transport Contract
-- Protocol: Server-Sent Events (`text/event-stream`).
-- Message shape: `data: <json>\n\n`.
-- Core event types currently emitted:
-  - `monologue`
-  - `vad`
-  - `grant_candidate`
-  - `pitch`
-  - `error`
-  - `done`
-
-## Environment Variables
-
-Backend key resolution order:
-1. `GEMINI_API_KEY`
-2. `GOOGLE_API_KEY` (fallback)
-
-If neither key is present, the backend switches to template fallback behavior.
-If both are set, this project enforces `GEMINI_API_KEY` as the selected key.
-
-Create:
-- root `.env` (for backend runtime)
-- `frontend/.env` (optional for local dev)
-
-Example:
-
-```env
-GEMINI_API_KEY=your_key_here
-# GOOGLE_API_KEY=optional_fallback_key
-REQUIRE_STREAM_API_KEY=TRUE
-STREAM_API_KEY=replace_with_long_random_secret
-STREAM_RATE_LIMIT_REQUESTS=8
-STREAM_RATE_LIMIT_WINDOW_SECONDS=60
-MAX_CONCURRENT_STREAMS=12
+```powershell
+docker compose up --build
 ```
 
-Frontend API base URL (optional):
+Endpoints:
+- Frontend: `http://localhost`
+- Backend health: `http://localhost:8000/health`
 
-```env
-VITE_API_BASE_URL=http://localhost:8000
-VITE_API_TARGET=http://localhost:8000
-VITE_STREAM_API_KEY=replace_with_stream_api_key
-```
+### Option B: Local Processes
 
-Default behavior when `VITE_API_BASE_URL` is unset:
-- Vite dev server on `localhost:4173` (or `localhost:5173` if reconfigured): uses `http://localhost:8000`
-- Containerized/Nginx runtime: uses same-origin `/api` proxy
-
-## Local Development
-
-### Backend
+Backend:
 
 ```powershell
 cd backend
@@ -118,7 +69,7 @@ python -m venv .venv
 .\.venv\Scripts\python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Frontend
+Frontend:
 
 ```powershell
 cd frontend
@@ -126,59 +77,66 @@ npm install
 npm run dev
 ```
 
-Open:
-- `http://localhost:4173`
+Frontend dev URL:
+- `http://127.0.0.1:4173`
 
-## Docker Compose
+## Documentation Index
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [API + SSE Contract](docs/API_REFERENCE.md)
+- [Configuration](docs/CONFIGURATION.md)
+- [Operations Runbook](docs/OPERATIONS_RUNBOOK.md)
+- [User Guide](docs/USER_GUIDE.md)
+- [Hackathon Strategy Integration](docs/DEEP_DIVE_HACKATHON_STRATEGY_INTEGRATION.md)
+
+## Current Runtime Characteristics
+
+- Transport: Server-Sent Events (`text/event-stream`)
+- Backend stack: FastAPI + async orchestration + httpx + google-genai
+- Frontend stack: React + TypeScript + Tailwind + EventSource
+- Auth model (stream): optional API key enforcement
+- Rate limiting: per-client sliding window
+- Concurrency: bounded via async semaphore
+- Demo reliability: deterministic fallback supported when `DEMO_MODE=TRUE`
+
+## Development Commands
+
+Frontend:
 
 ```powershell
-docker compose up --build
+cd frontend
+npm run dev
+npm run build
+npm run lint
 ```
 
-Services:
-- Backend: `http://localhost:8000`
-- Frontend: `http://localhost`
+Backend:
 
-### Dev vs Stage `DEMO_MODE`
-
-Base `docker-compose.yml` defaults to:
-- `DEMO_MODE=TRUE`
-
-Local override:
-- create a root `.env` file with:
-
-```env
-DEMO_MODE=FALSE
-GEMINI_API_KEY=your_key_here
+```powershell
+cd backend
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-This keeps Vultr deployment bulletproof by default, while allowing live API testing on your laptop.
+## Fast Recovery Script
 
-## Demo Mode
+If backend container gets into a bad state:
 
-`/api/stream_workflow` supports:
-- `query` (string)
-- `demo_mode` (bool)
-- `api_key` (string, browser-compatible auth path for EventSource)
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rebuild-backend-no-cache.ps1
+```
 
-Example:
-- `http://localhost:8000/api/stream_workflow?query=start&demo_mode=true&api_key=...`
+This script removes the backend service container, rebuilds image with `--no-cache`, restarts it, and prints compose status.
 
-`demo_mode=true` is the deterministic fallback for stable demos when external APIs are flaky.
+## Security Notes
 
-## Hackathon Strategy Integration
+- Do not ship real secrets in repository files.
+- If `REQUIRE_STREAM_API_KEY=TRUE` and `STREAM_API_KEY` is empty, auth enforcement is intentionally disabled for availability and emits warning logs.
+- For exposed environments, set:
+  - `REQUIRE_STREAM_API_KEY=TRUE`
+  - `STREAM_API_KEY=<strong-random-secret>`
+  - frontend `VITE_STREAM_API_KEY` when browser clients must authenticate.
 
-The deep strategy blueprint provided for Milan AI Week is integrated in:
+## Licensing
 
-- [docs/DEEP_DIVE_HACKATHON_STRATEGY_INTEGRATION.md](docs/DEEP_DIVE_HACKATHON_STRATEGY_INTEGRATION.md)
-
-This file is our execution north star for:
-- judging psychology,
-- architecture choices,
-- demo narrative discipline,
-- infrastructure reliability posture.
-
-## Compliance
-
-- Project license: [MIT-LICENSE.txt](MIT-LICENSE.txt)
-- Provenance and reuse notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- License: [MIT-LICENSE.txt](MIT-LICENSE.txt)
+- Third-party provenance: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
