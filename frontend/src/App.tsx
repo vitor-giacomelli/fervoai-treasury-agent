@@ -127,8 +127,13 @@ function App() {
   return (
     <div className="bg-background text-foreground scanline-overlay min-h-screen">
       <header className="border-border flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
-        <div className="font-heading text-4xl uppercase tracking-[0.08em] leading-none sm:text-5xl">
-          fervo<span className="flame-gradient-text">ai</span>
+        <div>
+          <div className="font-heading text-4xl uppercase tracking-[0.08em] leading-none sm:text-5xl">
+            Treasury Agent
+          </div>
+          <p className="mt-1 font-body text-[11px] uppercase tracking-[0.12em] text-foreground/55">
+            A FERVOAI product
+          </p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end sm:gap-6">
           <div className="font-mono text-foreground/70 text-[10px] uppercase tracking-[0.12em] sm:text-xs">NODE: FERVOAI.TECH</div>
