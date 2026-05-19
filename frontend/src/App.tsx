@@ -238,12 +238,52 @@ function App() {
     ? `mailto:${mailtoRecipient}?subject=${encodeURIComponent(buildProposalExport.subject)}&body=${encodeURIComponent(buildProposalExport.body)}`
     : '#'
 
+  const quickPresets = [
+    'Grid Modernization',
+    'AI Infrastructure',
+    'Climate Resilience',
+  ]
+
+  const stageStates = useMemo(() => {
+    const stageChecks = {
+      init: stream.monologueLog.some((entry) => entry.text.toLowerCase().includes('workflow booted')),
+      fetch: stream.monologueLog.some((entry) => entry.text.toLowerCase().includes('fetching grant opportunities')),
+      filter: stream.monologueLog.some((entry) => entry.text.toLowerCase().includes('evaluating relevance with gemini')),
+      select:
+        stream.grants.length > 0 ||
+        stream.monologueLog.some((entry) => entry.text.toLowerCase().includes('selected ')),
+      pitch: Boolean(stream.pitch),
+    }
+
+    const ordered = [
+      { key: 'init', label: 'Init', complete: stageChecks.init },
+      { key: 'fetch', label: 'Fetch', complete: stageChecks.fetch },
+      { key: 'filter', label: 'Filter', complete: stageChecks.filter },
+      { key: 'select', label: 'Select', complete: stageChecks.select },
+      { key: 'pitch', label: 'Pitch', complete: stageChecks.pitch },
+    ]
+
+    const currentIndex = ordered.findIndex((stage) => !stage.complete)
+    return ordered.map((stage, index) => ({
+      ...stage,
+      active:
+        stream.status !== 'idle' &&
+        (index === currentIndex || (currentIndex === -1 && index === ordered.length - 1)),
+    }))
+  }, [stream.monologueLog, stream.grants.length, stream.pitch, stream.status])
+
   const handleCommandOverride = () => {
     setHasTriedSubmit(true)
     if (!canExecute) {
       return
     }
     stream.runQuery(trimmedContext)
+  }
+
+  const handlePresetRun = (preset: string) => {
+    setBusinessContext(preset)
+    setHasTriedSubmit(false)
+    stream.runQuery(preset)
   }
 
   return (
@@ -267,6 +307,25 @@ function App() {
       </header>
 
       <main className="grid grid-cols-1 gap-4 p-4 sm:gap-6 sm:p-6 xl:grid-cols-3">
+        <section className="order-1 xl:col-span-3 rounded border border-border bg-card/80 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {stageStates.map((stage) => (
+              <div
+                key={stage.key}
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-mono uppercase tracking-[0.1em] transition ${
+                  stage.complete
+                    ? 'border-success/40 bg-success/10 text-success'
+                    : stage.active
+                      ? 'border-accent/40 bg-accent/10 text-accent animate-pulse'
+                      : 'border-border text-foreground/55'
+                }`}
+              >
+                {stage.label}
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="order-2 md:order-1 bg-card border-border xl:col-span-2 rounded border">
           <div className="bg-card border-border flex items-center justify-between border-b px-4 py-3">
             <h2 className="font-heading text-2xl uppercase tracking-[0.08em]">Live Execution Narrative</h2>
@@ -318,6 +377,14 @@ function App() {
           </div>
 
           <div className="space-y-5 p-4">
+            {activeTarget ? (
+              <div className="rounded-md border border-success/30 bg-success/10 px-3 py-2">
+                <p className="text-[11px] font-mono uppercase tracking-[0.11em] text-foreground/65">
+                  Top Match 94% | {activeDeadlineSignal?.label || 'Schedule unavailable'} | {activeTarget.agency}
+                </p>
+              </div>
+            ) : null}
+
             <div>
               <label htmlFor="business-context" className="font-heading text-foreground/60 mb-2 block text-sm uppercase tracking-[0.12em]">
                 Strategic Context
@@ -338,6 +405,18 @@ function App() {
               {hasTriedSubmit && !canExecute && (
                 <p className="font-mono text-danger mt-2 text-xs">Context required to execute workflow.</p>
               )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {quickPresets.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => handlePresetRun(preset)}
+                    className="rounded border border-border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.1em] text-foreground/80 transition hover:border-accent hover:text-foreground"
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <Button
