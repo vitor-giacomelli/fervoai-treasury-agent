@@ -80,20 +80,27 @@ If neither key is present, the backend switches to template fallback behavior.
 If both are set, this project enforces `GEMINI_API_KEY` as the selected key.
 
 Create:
-- `backend/.env`
-- `frontend/.env` (optional)
+- root `.env` (for backend runtime)
+- `frontend/.env` (optional for local dev)
 
 Example:
 
 ```env
 GEMINI_API_KEY=your_key_here
 # GOOGLE_API_KEY=optional_fallback_key
+REQUIRE_STREAM_API_KEY=TRUE
+STREAM_API_KEY=replace_with_long_random_secret
+STREAM_RATE_LIMIT_REQUESTS=8
+STREAM_RATE_LIMIT_WINDOW_SECONDS=60
+MAX_CONCURRENT_STREAMS=12
 ```
 
 Frontend API base URL (optional):
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000
+VITE_API_TARGET=http://localhost:8000
+VITE_STREAM_API_KEY=replace_with_stream_api_key
 ```
 
 Default behavior when `VITE_API_BASE_URL` is unset:
@@ -152,9 +159,10 @@ This keeps Vultr deployment bulletproof by default, while allowing live API test
 `/api/stream_workflow` supports:
 - `query` (string)
 - `demo_mode` (bool)
+- `api_key` (string, browser-compatible auth path for EventSource)
 
 Example:
-- `http://localhost:8000/api/stream_workflow?query=start&demo_mode=true`
+- `http://localhost:8000/api/stream_workflow?query=start&demo_mode=true&api_key=...`
 
 `demo_mode=true` is the deterministic fallback for stable demos when external APIs are flaky.
 

@@ -16,6 +16,7 @@ const DEV_DEFAULT_API_BASE_URL =
     : ''
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? DEV_DEFAULT_API_BASE_URL).replace(/\/$/, '')
+const STREAM_API_KEY = (import.meta.env.VITE_STREAM_API_KEY ?? '').trim()
 
 export function useTreasuryStream(): TreasuryStreamState {
   const [status, setStatus] = useState<WorkflowStatus>('idle')
@@ -97,7 +98,11 @@ export function useTreasuryStream(): TreasuryStreamState {
     setGrants([])
     setPitch(null)
 
-    const streamUrl = `${API_BASE_URL}/api/stream_workflow?query=${encodeURIComponent(query)}`
+    const streamParams = new URLSearchParams({ query })
+    if (STREAM_API_KEY) {
+      streamParams.set('api_key', STREAM_API_KEY)
+    }
+    const streamUrl = `${API_BASE_URL}/api/stream_workflow?${streamParams.toString()}`
     const source = new EventSource(streamUrl)
     sourceRef.current = source
 
