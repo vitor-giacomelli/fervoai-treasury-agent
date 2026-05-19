@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
@@ -10,6 +12,7 @@ from pitch_generator import PitchGenerator
 
 grants_api = GrantsGovAPI()
 pitch_generator = PitchGenerator()
+logger = logging.getLogger(__name__)
 
 
 def _sse(payload: dict) -> str:
@@ -99,6 +102,13 @@ async def run_treasury_workflow(query: str, demo_mode: bool) -> AsyncGenerator[s
                 },
             }
         )
-    except Exception as err:
-        yield _sse({"type": "error", "text": str(err)})
-        yield _sse({"type": "done", "payload": {"success": False}})
+    except Exception:
+        error_id = uuid.uuid4().hex[:12]
+        logger.exception("Treasury workflow failed. error_id=%s", error_id)
+        yield _sse(
+            {
+                "type": "error",
+                "text": f"Workflow failed unexpectedly. Reference: {error_id}",
+            }
+        )
+        yield _sse({"type": "done", "payload": {"success": False, "error_id": error_id}})
