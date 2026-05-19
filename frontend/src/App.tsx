@@ -433,7 +433,19 @@ function App() {
                     <div className="translate-y-0 opacity-100 transition-all duration-500 ease-out">
                       <div className="grid grid-cols-1 md:grid-cols-[1.5fr_1fr_1fr] gap-2 items-center">
                         <h3 className="text-base font-bold text-foreground truncate">{activeTarget.title}</h3>
-                        <p className="text-xs font-mono text-foreground/70 truncate">ID: {activeTarget.opportunity_number}</p>
+                        <div className="flex items-center min-w-0">
+                          <p className="text-xs font-mono text-foreground/70 truncate">ID: {activeTarget.opportunity_number}</p>
+                          {activeTarget.url ? (
+                            <a
+                              href={activeTarget.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-4 inline-flex items-center gap-1 px-2 py-1 bg-gray-900 border border-gray-700 hover:border-emerald-500 hover:text-emerald-400 text-gray-400 text-xs font-mono rounded transition-colors"
+                            >
+                              [↗] LIVE S2S PORTAL
+                            </a>
+                          ) : null}
+                        </div>
                         <p className="text-xs font-mono text-foreground/70 truncate">Close: {activeTarget.close_date}</p>
                       </div>
                     </div>
