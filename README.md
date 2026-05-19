@@ -1,142 +1,82 @@
-# fervoAI Treasury Agent
+# 🟢 fervoAI | Treasury Agent
 
-Live grant-intelligence application that discovers federal opportunities, ranks and filters them, generates a pitch package, and streams internal orchestration telemetry to a terminal-style UI.
+> **Federal grants should fund innovation, not drain teams in bureaucracy.**  
+> Most AI tools in this space are just chat wrappers with prettier buttons. We built autonomous infrastructure.
 
-This repository contains the complete product slice used for hackathon demo and near-term production hardening.
+The **fervoAI Treasury Agent** is a stateful orchestration loop that autonomously finds, scores, and routes federal grant execution. It bypasses semantic noise, hits live government API surfaces, injects dynamic company state, and deploys multi-agent swarm delegations to close the execution loop.
 
-## What The App Does
+🎥 **[Watch the 2-Minute Demo Video Here](Link to YouTube/Devpost)**
 
-1. Accepts a strategic business query.
-2. Expands query vectors (Gemini-assisted when enabled).
-3. Pulls active opportunities from Grants.gov (`forecasted|posted` scope).
-4. Filters candidate grants with Gemini relevance ranking.
-5. Selects a target and generates a structured pitch payload.
-6. Streams thought telemetry and machine state through SSE.
-7. Presents a phased HUD:
-   - Hunt: cognitive telemetry
-   - Lock: bento proposal dashboard
-   - Deploy: swarm execution simulation + audit log
+---
 
-## Repository Structure
+## 🧠 The Architecture of Action
 
-```text
-fervoai-treasury-agent/
-  backend/
-    main.py
-    orchestrator.py
-    grants_gov_api.py
-    pitch_generator.py
-    pydantic_models.py
-    fervo_state.json
-    requirements.txt
-  frontend/
-    src/
-      App.tsx
-      hooks/useTreasuryStream.ts
-      types/stream.ts
-  scripts/
-    rebuild-backend-no-cache.ps1
-  docs/
-    API_REFERENCE.md
-    ARCHITECTURE.md
-    CONFIGURATION.md
-    OPERATIONS_RUNBOOK.md
-    DEEP_DIVE_HACKATHON_STRATEGY_INTEGRATION.md
-  docker-compose.yml
-  .env.example
-```
+The Treasury Agent does not just generate text. It operates in a continuous ReAct loop, streaming its internal cognitive telemetry to a cyber-brutalist frontend HUD.
 
-## Quick Start
+- **🎯 Semantic Target Acquisition:** Expands strategic business queries into multi-vector searches against the live Grants.gov S2S (System-to-System) API.
+- **⚖️ Feasibility Matrix:** Uses Gemini-assisted relevance ranking to score targets against Technical Fit, Compliance Readiness, and Capital Efficiency.
+- **🧬 Dynamic State Injection:** Reads company topology live from `fervo_state.json` at runtime. No hardcoded prompts. The agent knows exactly who is on the team and what their domains are.
+- **🐝 Swarm Orchestration:** Decomposes the massive grant application into specialized sub-tasks and routes them to the correct human operators (Tech Lead, COO) and autonomous Sub-Agents.
 
-### Option A: Docker Compose
+---
 
-```powershell
+## 🖥️ The Three-Act HUD
+
+The frontend is a React-based command center built to visualize the agent's autonomy:
+
+1. **THE HUNT:** A raw, cognitive telemetry terminal exposing the agent's multi-step ReAct reasoning and API strikes in real-time.
+2. **THE LOCK:** A high-density "Bento Box" dashboard rendering the synthesized pitch and the Feasibility Matrix.
+3. **THE DEPLOY:** A simulated execution layer that dispatches the Swarm tasks to the team via an interactive Audit Log.
+
+---
+
+## 🚀 Quick Start (Deployment)
+
+### Option A: The One-Click Infrastructure (Docker)
+
+```bash
 docker compose up --build
 ```
 
-Endpoints:
-- Frontend: `http://localhost`
-- Backend health: `http://localhost:8000/health`
+- Frontend HUD: `http://localhost`
+- Backend Engine: `http://localhost:8000/health`
 
 ### Option B: Local Processes
 
-Backend:
-
 ```powershell
+# 1. Boot the Engine
 cd backend
 python -m venv .venv
-.\.venv\Scripts\python -m pip install -r requirements.txt
-.\.venv\Scripts\python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-Frontend:
-
-```powershell
+# 2. Boot the HUD
 cd frontend
 npm install
 npm run dev
 ```
 
-Frontend dev URL:
-- `http://127.0.0.1:4173`
+- HUD URL: `http://127.0.0.1:4173`
 
-## Documentation Index
+---
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [API + SSE Contract](docs/API_REFERENCE.md)
-- [Configuration](docs/CONFIGURATION.md)
-- [Operations Runbook](docs/OPERATIONS_RUNBOOK.md)
-- [User Guide](docs/USER_GUIDE.md)
-- [Hackathon Strategy Integration](docs/DEEP_DIVE_HACKATHON_STRATEGY_INTEGRATION.md)
+## 🏗️ Repository Structure
 
-## Current Runtime Characteristics
+- `/backend` - The FastAPI asynchronous engine. Contains the core orchestrator, Grants.gov S2S adapter, and the `fervo_state.json` dynamic context file.
+- `/frontend` - The React/Tailwind/TypeScript presentation layer. Driven by Server-Sent Events (SSE).
+- `/docs` - Deep-dive architecture specs, API contracts, and operational runbooks.
+- `/scripts` - Fast-recovery PowerShell scripts for aggressive container rebuilds.
 
-- Transport: Server-Sent Events (`text/event-stream`)
-- Backend stack: FastAPI + async orchestration + httpx + google-genai
-- Frontend stack: React + TypeScript + Tailwind + EventSource
-- Auth model (stream): optional API key enforcement
-- Rate limiting: per-client sliding window
-- Concurrency: bounded via async semaphore
-- Demo reliability: deterministic fallback supported when `DEMO_MODE=TRUE`
+---
 
-## Development Commands
+## ⚙️ Current Runtime Characteristics
 
-Frontend:
+- **Transport:** Server-Sent Events (`text/event-stream`)
+- **Stack:** FastAPI + async orchestration + httpx + google-genai -> React + Tailwind
+- **Concurrency:** Bounded via async semaphore
+- **Resilience:** Deterministic fallback supported via `DEMO_MODE=TRUE` for high-stakes presentations
 
-```powershell
-cd frontend
-npm run dev
-npm run build
-npm run lint
-```
+---
 
-Backend:
-
-```powershell
-cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-## Fast Recovery Script
-
-If backend container gets into a bad state:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\rebuild-backend-no-cache.ps1
-```
-
-This script removes the backend service container, rebuilds image with `--no-cache`, restarts it, and prints compose status.
-
-## Security Notes
-
-- Do not ship real secrets in repository files.
-- If `REQUIRE_STREAM_API_KEY=TRUE` and `STREAM_API_KEY` is empty, auth enforcement is intentionally disabled for availability and emits warning logs.
-- For exposed environments, set:
-  - `REQUIRE_STREAM_API_KEY=TRUE`
-  - `STREAM_API_KEY=<strong-random-secret>`
-  - frontend `VITE_STREAM_API_KEY` when browser clients must authenticate.
-
-## Licensing
-
-- License: [MIT-LICENSE.txt](MIT-LICENSE.txt)
-- Third-party provenance: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+Built for the AI Agent Olympics 2026. Code licensed under MIT. FervoAI.
